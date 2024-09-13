@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![allow(dead_code)]
 
 mod bootloaders;
 mod drivers;
@@ -7,7 +8,6 @@ mod library;
 
 extern crate alloc;
 
-use core::borrow::BorrowMut;
 use core::cell::RefCell;
 use core::fmt::Write;
 use drivers::Serial32Driver;
@@ -55,8 +55,6 @@ fn draw_pixel(video: &mut drivers::VideoCoreDriver, x: i32, y: i32, color: u32) 
     if x < 0 || x >= video.get_width() || y < 0 || y >= video.get_height() {
         return;
     }
-
-    let pitch = video.get_pitch();
 
     let fb = video.get_mut_framebuffer();
     let pitch = video.get_pitch();

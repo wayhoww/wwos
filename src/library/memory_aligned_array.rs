@@ -1,9 +1,6 @@
 extern crate alloc;
 
-use core::{
-    ops::{Index, IndexMut},
-    ptr::*,
-};
+use core::ops::{Index, IndexMut};
 
 pub struct MemoryAlignedArray<T> {
     buffer: *mut T,
@@ -14,17 +11,15 @@ pub struct MemoryAlignedArray<T> {
 
 impl<T> MemoryAlignedArray<T> {
     pub fn new(alignment: usize) -> Self {
-        let mut buffer = core::ptr::null_mut();
-
         let capacity = 1;
         let count = 0;
 
         let size = capacity * core::mem::size_of::<T>();
 
-        unsafe {
+        let buffer = unsafe {
             let layout = core::alloc::Layout::from_size_align(size, alignment).unwrap();
-            buffer = alloc::alloc::alloc(layout) as *mut T;
-        }
+            alloc::alloc::alloc(layout) as *mut T
+        };
         Self {
             buffer,
             capacity,

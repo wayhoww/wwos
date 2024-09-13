@@ -323,7 +323,7 @@ impl DeviceTreeNode {
 }
 
 #[derive(Debug)]
-struct MemoryReservation {
+pub struct MemoryReservation {
     pub address: u64,
     pub size: u64,
 }

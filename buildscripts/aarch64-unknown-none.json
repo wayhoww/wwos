@@ -18,7 +18,7 @@
   "panic-strategy": "abort",
   "pre-link-args": {
     "ld.lld": [
-      "-Ttarget/linker.ld"
+      "-Tintermediate/linker.ld"
     ]
   },
   "relocation-model": "static",

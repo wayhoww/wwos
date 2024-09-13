@@ -117,10 +117,8 @@ impl super::DriverFactory for MailboxDriverFactory {
         parent: Option<&DeviceTreeNode>,
         mapping_chain: &crate::library::MemoryMappingChain,
     ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
-        let reg = device.find_property_by_name("reg")?;
-        let lower_addr = u32::from_be_bytes(reg[0..4].try_into().unwrap()) as *mut u32;
-        let upper_addr = mapping_chain.get_up(lower_addr as usize)?;
-        let addr = upper_addr as *mut u32;
+        let (addr, _) = device.get_address_size(parent?)?;
+        let addr = mapping_chain.get_up(addr)? as *mut u32;
         Some(alloc::boxed::Box::new(Mailbox::new(addr)))
     }
 }
