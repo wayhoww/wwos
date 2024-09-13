@@ -1,5 +1,3 @@
-
-
 // linux,dummy-virt
 
 use alloc::vec;
@@ -10,7 +8,9 @@ use super::Driver;
 
 pub struct DummyVirtDriver;
 impl Driver for DummyVirtDriver {
-    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> { None }
+    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
+        None
+    }
 }
 
 pub struct DummyVirtDriverFactory;
@@ -19,7 +19,12 @@ impl super::DriverFactory for DummyVirtDriverFactory {
         return vec!["linux,dummy-virt"];
     }
 
-    fn instantiate(&self, _device: &crate::library::DeviceTreeNode, _parent: Option<&DeviceTreeNode>, _mapping_chain: &crate::library::MemoryMappingChain) -> Option<alloc::boxed::Box<dyn super::Driver>> {
+    fn instantiate(
+        &self,
+        _device: &crate::library::DeviceTreeNode,
+        _parent: Option<&DeviceTreeNode>,
+        _mapping_chain: &crate::library::MemoryMappingChain,
+    ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
         return Some(alloc::boxed::Box::new(DummyVirtDriver));
     }
 }
@@ -39,14 +44,21 @@ impl super::DriverFactory for Bcm2711DriverFactory {
         return vec!["brcm,bcm2711"];
     }
 
-    fn instantiate(&self, _device: &DeviceTreeNode, _parent: Option<&DeviceTreeNode>, _mapping_chain: &crate::library::MemoryMappingChain) -> Option<alloc::boxed::Box<dyn super::Driver>> {
+    fn instantiate(
+        &self,
+        _device: &DeviceTreeNode,
+        _parent: Option<&DeviceTreeNode>,
+        _mapping_chain: &crate::library::MemoryMappingChain,
+    ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
         return Some(alloc::boxed::Box::new(Bcm2711Driver));
     }
 }
 
 pub struct SimpleBusDriver;
 impl Driver for SimpleBusDriver {
-    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> { None }
+    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
+        None
+    }
 }
 
 pub struct SimpleBusDriverFactory;
@@ -55,7 +67,12 @@ impl super::DriverFactory for SimpleBusDriverFactory {
         return vec!["simple-bus"];
     }
 
-    fn instantiate(&self, _device: &crate::library::DeviceTreeNode, _parent: Option<&DeviceTreeNode>, _mapping_chain: &crate::library::MemoryMappingChain) -> Option<alloc::boxed::Box<dyn super::Driver>> {
+    fn instantiate(
+        &self,
+        _device: &crate::library::DeviceTreeNode,
+        _parent: Option<&DeviceTreeNode>,
+        _mapping_chain: &crate::library::MemoryMappingChain,
+    ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
         return Some(alloc::boxed::Box::new(SimpleBusDriver));
     }
 }

@@ -1,13 +1,13 @@
-use core::any::{Any, TypeId};
-
-use alloc::{boxed::Box, string::String, vec};
 use alloc::vec::Vec;
+use alloc::{boxed::Box, string::String};
 use log::{info, warn};
 
-use crate::drivers::{self, Driver, DriverFactory, PL011Driver, Serial32Driver};
+use crate::drivers::{self, Driver, DriverFactory, Serial32Driver};
 
-use super::{device_tree::{DeviceTree, DeviceTreeNode}, memory_mapping::MemoryMappingChain, MemoryMapping, MemoryMappingItem};
-
+use super::{
+    device_tree::{DeviceTree, DeviceTreeNode},
+    memory_mapping::MemoryMappingChain,
+};
 
 fn overlaps(l1: &[&str], l2: &[&str]) -> bool {
     for s1 in l1.iter() {
@@ -26,18 +26,18 @@ pub struct DriverInstance {
 }
 
 fn initialize_hardwares_recursive(
-    node: &DeviceTreeNode, 
+    node: &DeviceTreeNode,
     parent: Option<&DeviceTreeNode>,
-    driver_factories: &Vec<Box<dyn DriverFactory>>, 
-    mapping_chain: &mut MemoryMappingChain, 
+    driver_factories: &Vec<Box<dyn DriverFactory>>,
+    mapping_chain: &mut MemoryMappingChain,
     path: &mut Vec<String>,
     out: &mut Vec<DriverInstance>,
-    depth: usize
+    depth: usize,
 ) {
     let node_compatibles = node.get_compatibles();
     path.push(node.name.clone());
     let path_string = path.iter().fold(String::new(), |acc, x| acc + "/" + x);
-    
+
     let mut device_initialized = false;
 
     for driver in driver_factories.iter() {
@@ -59,7 +59,6 @@ fn initialize_hardwares_recursive(
         let driver_instance = driver_instance.unwrap();
         info!("initialized driver for device `{}`", path_string);
 
-
         if let Some(mapping) = driver_instance.get_memory_mapping() {
             mapping_chain.mappings.push(mapping);
         }
@@ -74,7 +73,11 @@ fn initialize_hardwares_recursive(
 
     if !device_initialized {
         // TODO: logging
-        warn!("no driver found for device `{}`, compatible={:?}", path_string, node.get_compatibles());
+        warn!(
+            "no driver found for device `{}`, compatible={:?}",
+            path_string,
+            node.get_compatibles()
+        );
         path.pop();
         return;
     }
@@ -87,25 +90,36 @@ fn initialize_hardwares_recursive(
 
     for child in node.children.iter() {
         // TODO(ww): address mapping
-        initialize_hardwares_recursive(child, Some(node), driver_factories, mapping_chain, path, out, depth + 1);
+        initialize_hardwares_recursive(
+            child,
+            Some(node),
+            driver_factories,
+            mapping_chain,
+            path,
+            out,
+            depth + 1,
+        );
     }
 
     path.pop();
 }
 
-fn initialize_hardwares_internal(tree: &DeviceTree, driver_factories: Vec<Box<dyn DriverFactory>>) -> Vec<DriverInstance> {
+fn initialize_hardwares_internal(
+    tree: &DeviceTree,
+    driver_factories: Vec<Box<dyn DriverFactory>>,
+) -> Vec<DriverInstance> {
     let mut mapping_chain = MemoryMappingChain::new();
     let mut path = Vec::new();
     let mut driver_instances = Vec::new();
 
-    initialize_hardwares_recursive(&
-        tree.root, 
+    initialize_hardwares_recursive(
+        &tree.root,
         None,
-        &driver_factories, 
-        &mut mapping_chain, 
-        &mut path, 
+        &driver_factories,
+        &mut mapping_chain,
+        &mut path,
         &mut driver_instances,
-        0
+        0,
     );
 
     driver_instances
@@ -113,10 +127,9 @@ fn initialize_hardwares_internal(tree: &DeviceTree, driver_factories: Vec<Box<dy
 
 static mut DRIVER_INSTANCES: Option<Vec<DriverInstance>> = None;
 
-
 pub fn initialize_hardwares(tree: &DeviceTree) {
     let mut driver_factories: Vec<Box<dyn DriverFactory>> = Vec::new();
-    
+
     driver_factories.push(Box::new(drivers::PL011DriverFactory));
     driver_factories.push(Box::new(drivers::DummyVirtDriverFactory));
     driver_factories.push(Box::new(drivers::Bcm2711DriverFactory));
@@ -130,6 +143,9 @@ pub fn initialize_hardwares(tree: &DeviceTree) {
 }
 
 pub fn get_serial32_drivers() -> Vec<&'static mut dyn Serial32Driver> {
-    let driver_instances = unsafe {DRIVER_INSTANCES.as_mut().unwrap()};
-    driver_instances.iter_mut().flat_map(|inst| inst.driver.as_serial32_mut()).collect()
+    let driver_instances = unsafe { DRIVER_INSTANCES.as_mut().unwrap() };
+    driver_instances
+        .iter_mut()
+        .flat_map(|inst| inst.driver.as_serial32_mut())
+        .collect()
 }

@@ -1,6 +1,9 @@
 extern crate alloc;
 
-use core::{ops::{Index, IndexMut}, ptr::*};
+use core::{
+    ops::{Index, IndexMut},
+    ptr::*,
+};
 
 pub struct MemoryAlignedArray<T> {
     buffer: *mut T,
@@ -17,7 +20,7 @@ impl<T> MemoryAlignedArray<T> {
         let count = 0;
 
         let size = capacity * core::mem::size_of::<T>();
-        
+
         unsafe {
             let layout = core::alloc::Layout::from_size_align(size, alignment).unwrap();
             buffer = alloc::alloc::alloc(layout) as *mut T;
@@ -47,7 +50,11 @@ impl<T> MemoryAlignedArray<T> {
 
         unsafe {
             core::ptr::copy(self.buffer, new_buffer, used_bytes);
-            let layout = core::alloc::Layout::from_size_align(self.capacity * core::mem::size_of::<T>(), self.alignment).unwrap();
+            let layout = core::alloc::Layout::from_size_align(
+                self.capacity * core::mem::size_of::<T>(),
+                self.alignment,
+            )
+            .unwrap();
             alloc::alloc::dealloc(self.buffer as *mut u8, layout);
         }
 
@@ -59,18 +66,14 @@ impl<T> MemoryAlignedArray<T> {
         if index >= self.count {
             return None;
         }
-        unsafe {
-            Some(&*self.buffer.add(index))
-        }
+        unsafe { Some(&*self.buffer.add(index)) }
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index >= self.count {
             return None;
         }
-        unsafe {
-            Some(&mut *self.buffer.add(index))
-        }
+        unsafe { Some(&mut *self.buffer.add(index)) }
     }
 
     pub fn append(&mut self, value: T) {
@@ -94,7 +97,6 @@ impl<T> MemoryAlignedArray<T> {
     }
 }
 
-
 impl<T> Index<usize> for MemoryAlignedArray<T> {
     type Output = T;
 
@@ -112,7 +114,11 @@ impl<T> IndexMut<usize> for MemoryAlignedArray<T> {
 impl<T> Drop for MemoryAlignedArray<T> {
     fn drop(&mut self) {
         unsafe {
-            let layout = core::alloc::Layout::from_size_align(self.count * core::mem::size_of::<T>(), self.alignment).unwrap();
+            let layout = core::alloc::Layout::from_size_align(
+                self.count * core::mem::size_of::<T>(),
+                self.alignment,
+            )
+            .unwrap();
             alloc::alloc::dealloc(self.buffer as *mut u8, layout);
         }
     }

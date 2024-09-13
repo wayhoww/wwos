@@ -1,8 +1,4 @@
-use alloc::{string::{String, ToString}, vec::Vec};
-use log::info;
-
-use core::fmt::{write, Write};
-
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug)]
 struct DeviceTreeHeader {
@@ -51,7 +47,6 @@ const FDT_END_NODE: u32 = 0x2;
 const FDT_PROP: u32 = 0x3;
 const FDT_NOP: u32 = 0x4;
 const FDT_END: u32 = 0x9;
-
 
 pub struct DeviceTreePropertyValue(pub Vec<u8>);
 
@@ -122,12 +117,8 @@ fn contains_subarray(text: &[u8], pattern: &[u8]) -> bool {
 impl DeviceTreeMatch {
     pub fn match_string(&self, text: &[u8], pattern: &[u8]) -> bool {
         match self {
-            DeviceTreeMatch::Exact => {
-                text == pattern
-            }
-            DeviceTreeMatch::Contains => {
-                contains_subarray(text, pattern)
-            }
+            DeviceTreeMatch::Exact => text == pattern,
+            DeviceTreeMatch::Contains => contains_subarray(text, pattern),
         }
     }
 }
@@ -145,11 +136,16 @@ impl DeviceTreeNode {
         let mut nodes: Vec<DeviceTreeNode> = Vec::new();
 
         let mut out: Option<DeviceTreeNode> = None;
-        
+
         let mut p = 0;
-        
+
         loop {
-            let token_int = u32::from_be_bytes([structure_block[p], structure_block[p + 1], structure_block[p + 2], structure_block[p + 3]]);
+            let token_int = u32::from_be_bytes([
+                structure_block[p],
+                structure_block[p + 1],
+                structure_block[p + 2],
+                structure_block[p + 3],
+            ]);
             p += 4;
 
             match token_int {
@@ -165,7 +161,7 @@ impl DeviceTreeNode {
                     p = (p + 3) & !3;
                     new_node.name = name;
 
-                    nodes.push(new_node);           
+                    nodes.push(new_node);
                 }
                 FDT_END_NODE => {
                     let last = nodes.pop();
@@ -176,10 +172,20 @@ impl DeviceTreeNode {
                     }
                 }
                 FDT_PROP => {
-                    let len = u32::from_be_bytes([structure_block[p], structure_block[p + 1], structure_block[p + 2], structure_block[p + 3]]);
+                    let len = u32::from_be_bytes([
+                        structure_block[p],
+                        structure_block[p + 1],
+                        structure_block[p + 2],
+                        structure_block[p + 3],
+                    ]);
                     p += 4;
 
-                    let nameoff = u32::from_be_bytes([structure_block[p], structure_block[p + 1], structure_block[p + 2], structure_block[p + 3]]);
+                    let nameoff = u32::from_be_bytes([
+                        structure_block[p],
+                        structure_block[p + 1],
+                        structure_block[p + 2],
+                        structure_block[p + 3],
+                    ]);
                     p += 4;
 
                     let mut value = Vec::new();
@@ -190,21 +196,30 @@ impl DeviceTreeNode {
 
                     p = (p + 3) & !3;
 
-                    let name = load_string_from_null_terminated_slice(&strings_block[nameoff as usize..]);
-                    nodes.last_mut().unwrap().properties.push((name, DeviceTreePropertyValue(value)));
-
+                    let name =
+                        load_string_from_null_terminated_slice(&strings_block[nameoff as usize..]);
+                    nodes
+                        .last_mut()
+                        .unwrap()
+                        .properties
+                        .push((name, DeviceTreePropertyValue(value)));
                 }
                 FDT_NOP => {}
                 FDT_END => break,
-                _ => panic!("Unknown token: {}", token_int)
+                _ => panic!("Unknown token: {}", token_int),
             }
         }
 
-        out.unwrap()        
+        out.unwrap()
     }
 
-
-    fn find_nodes_by_property_recursively<'t>(self: &'t DeviceTreeNode, property: &str, query: &[u8], schema: DeviceTreeMatch, out: &mut Vec<&'t DeviceTreeNode>) {
+    fn find_nodes_by_property_recursively<'t>(
+        self: &'t DeviceTreeNode,
+        property: &str,
+        query: &[u8],
+        schema: DeviceTreeMatch,
+        out: &mut Vec<&'t DeviceTreeNode>,
+    ) {
         for (name, value) in &self.properties {
             if name != property {
                 continue;
@@ -221,7 +236,11 @@ impl DeviceTreeNode {
         }
     }
 
-    fn find_nodes_by_name_recursively<'t>(self: &'t DeviceTreeNode, name: &str, out: &mut Vec<&'t DeviceTreeNode>) {
+    fn find_nodes_by_name_recursively<'t>(
+        self: &'t DeviceTreeNode,
+        name: &str,
+        out: &mut Vec<&'t DeviceTreeNode>,
+    ) {
         if self.name == name {
             out.push(self);
         }
@@ -275,10 +294,12 @@ impl DeviceTreeNode {
 
         if n_size_cells == 0 {
             size = 0usize;
-        } else if n_size_cells == 1{
-            size = u32::from_be_bytes(regs[size_begin..size_begin + 4].try_into().unwrap()) as usize;
+        } else if n_size_cells == 1 {
+            size =
+                u32::from_be_bytes(regs[size_begin..size_begin + 4].try_into().unwrap()) as usize;
         } else {
-            size = u64::from_be_bytes(regs[size_begin..size_begin + 8].try_into().unwrap()) as usize;
+            size =
+                u64::from_be_bytes(regs[size_begin..size_begin + 8].try_into().unwrap()) as usize;
         }
 
         Some((address, size))
@@ -310,8 +331,13 @@ struct MemoryReservation {
 impl MemoryReservation {
     fn from_slice(slice: &[u8]) -> Self {
         Self {
-            address: u64::from_be_bytes([slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7]]),
-            size: u64::from_be_bytes([slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15]]),
+            address: u64::from_be_bytes([
+                slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
+            ]),
+            size: u64::from_be_bytes([
+                slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
+                slice[15],
+            ]),
         }
     }
 }
@@ -326,20 +352,34 @@ impl DeviceTree {
     fn from_memory_internal(memory: *const u8) -> Self {
         let size_of_header = core::mem::size_of::<DeviceTreeHeader>();
 
-        let header = DeviceTreeHeader::from_slice(unsafe { core::slice::from_raw_parts(memory, size_of_header) });
+        let header = DeviceTreeHeader::from_slice(unsafe {
+            core::slice::from_raw_parts(memory, size_of_header)
+        });
         if header.magic != 0xd00dfeed {
             panic!("Error: Invalid device tree magic");
         }
 
-        let structure_block = unsafe { core::slice::from_raw_parts(memory.offset(header.off_dt_struct as isize), header.size_dt_struct as usize) };
-        let strings_block = unsafe { core::slice::from_raw_parts(memory.offset(header.off_dt_strings as isize), header.size_dt_strings as usize) };
+        let structure_block = unsafe {
+            core::slice::from_raw_parts(
+                memory.offset(header.off_dt_struct as isize),
+                header.size_dt_struct as usize,
+            )
+        };
+        let strings_block = unsafe {
+            core::slice::from_raw_parts(
+                memory.offset(header.off_dt_strings as isize),
+                header.size_dt_strings as usize,
+            )
+        };
 
         let root = DeviceTreeNode::from_slice(structure_block, strings_block);
 
         let mut memory_reservations = Vec::new();
         let mut p = header.off_mem_rsvmap;
         while p < header.off_mem_rsvmap + 16 {
-            let reservation = MemoryReservation::from_slice(unsafe { core::slice::from_raw_parts(memory.offset(p as isize), 16) });
+            let reservation = MemoryReservation::from_slice(unsafe {
+                core::slice::from_raw_parts(memory.offset(p as isize), 16)
+            });
             if reservation.address == 0 && reservation.size == 0 {
                 break;
             }
@@ -349,7 +389,7 @@ impl DeviceTree {
 
         Self {
             root,
-            memory_reservations
+            memory_reservations,
         }
     }
 
@@ -357,9 +397,15 @@ impl DeviceTree {
         Self::from_memory_internal(memory)
     }
 
-    pub fn find_nodes_by_property(&self, property: &str, query: &[u8], schema: DeviceTreeMatch) -> Vec<&DeviceTreeNode> {
+    pub fn find_nodes_by_property(
+        &self,
+        property: &str,
+        query: &[u8],
+        schema: DeviceTreeMatch,
+    ) -> Vec<&DeviceTreeNode> {
         let mut out = Vec::new();
-        self.root.find_nodes_by_property_recursively(property, query, schema, &mut out);
+        self.root
+            .find_nodes_by_property_recursively(property, query, schema, &mut out);
         out
     }
 

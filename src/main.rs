@@ -2,29 +2,29 @@
 #![no_main]
 
 mod bootloaders;
-mod library;
 mod drivers;
-
+mod library;
 
 extern crate alloc;
 
 use core::borrow::BorrowMut;
 use core::cell::RefCell;
 use core::fmt::Write;
-use drivers::{Serial32Driver};
+use drivers::Serial32Driver;
 use library::{get_serial32_drivers, initialize_hardwares, DeviceTree};
 use log::*;
 
-
-use log::{Record, Level, Metadata};
+use log::{Level, Metadata, Record};
 
 struct UartLogger {
-    uart: RefCell<&'static mut dyn Serial32Driver>
+    uart: RefCell<&'static mut dyn Serial32Driver>,
 }
 
 impl UartLogger {
     fn new(uart: &'static mut dyn Serial32Driver) -> Self {
-        Self { uart: RefCell::new(uart) }
+        Self {
+            uart: RefCell::new(uart),
+        }
     }
 }
 
@@ -38,7 +38,13 @@ impl log::Log for UartLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            writeln!(self.uart.borrow_mut(), "{} - {}", record.level(), record.args()).unwrap();
+            writeln!(
+                self.uart.borrow_mut(),
+                "{} - {}",
+                record.level(),
+                record.args()
+            )
+            .unwrap();
         }
     }
 
@@ -59,14 +65,20 @@ fn draw_pixel(video: &mut drivers::VideoCoreDriver, x: i32, y: i32, color: u32) 
     }
 }
 
-fn draw_rect(video: &mut drivers::VideoCoreDriver, x: i32, y: i32, width: i32, height: i32, color: u32) {
+fn draw_rect(
+    video: &mut drivers::VideoCoreDriver,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    color: u32,
+) {
     for i in 0..height {
         for j in 0..width {
             draw_pixel(video, x + j, y + i, color);
         }
     }
 }
-
 
 // this function shall be called only once, in one thread
 unsafe fn initialize_logging_system() {
@@ -87,11 +99,10 @@ fn kmain(arg0: usize) -> ! {
         DEVICE_TREE = Some(DeviceTree::from_memory(arg0 as *const u8));
 
         // writeln!(Uart, "{:#?}", DEVICE_TREE).unwrap();
-        
+
         initialize_hardwares(DEVICE_TREE.as_ref().unwrap());
         initialize_logging_system();
     }
-
 
     info!("Hello, world!");
     loop {}
@@ -100,6 +111,5 @@ fn kmain(arg0: usize) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-
     loop {}
 }

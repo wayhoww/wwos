@@ -24,9 +24,8 @@ pub struct VideoCoreDriver {
 
 impl VideoCoreDriver {
     pub fn new(addr: *mut u32, mailbox_channel: u32) -> VideoCoreDriver {
-
         let mailbox = Mailbox::new(addr);
-        let channel = mailbox_channel;        
+        let channel = mailbox_channel;
 
         let mut driver = VideoCoreDriver {
             mailbox,
@@ -46,21 +45,32 @@ impl VideoCoreDriver {
     fn init_frame_buffer(&mut self) {
         let mut prop_init = MailboxPropertiesBuffer::new();
 
-        prop_init.add_tag(VideoCoreMailboxTagIdentifier::SetPhysicalWidthHeight as u32, &[800, 600]);
-        let off_virt_wh = prop_init.add_tag(VideoCoreMailboxTagIdentifier::SetVirtualWidthHeight as u32, &[800, 600]);
-        prop_init.add_tag(VideoCoreMailboxTagIdentifier::SetVirtualOffset as u32, &[0, 0]);
+        prop_init.add_tag(
+            VideoCoreMailboxTagIdentifier::SetPhysicalWidthHeight as u32,
+            &[800, 600],
+        );
+        let off_virt_wh = prop_init.add_tag(
+            VideoCoreMailboxTagIdentifier::SetVirtualWidthHeight as u32,
+            &[800, 600],
+        );
+        prop_init.add_tag(
+            VideoCoreMailboxTagIdentifier::SetVirtualOffset as u32,
+            &[0, 0],
+        );
         let off_depth = prop_init.add_tag(VideoCoreMailboxTagIdentifier::SetDepth as u32, &[32]);
         prop_init.add_tag(VideoCoreMailboxTagIdentifier::SetPixelOrder as u32, &[1]);
-        let off_fb = prop_init.add_tag(VideoCoreMailboxTagIdentifier::GetFrameBuffer as u32, &[4096, 0]);
+        let off_fb = prop_init.add_tag(
+            VideoCoreMailboxTagIdentifier::GetFrameBuffer as u32,
+            &[4096, 0],
+        );
         let off_pitch = prop_init.add_tag(VideoCoreMailboxTagIdentifier::GetPitch as u32, &[0]);
 
         prop_init.finish();
 
-        
         self.mailbox.write_properties(&mut prop_init, self.channel);
 
         let buffer = prop_init.get_buffer();
-        
+
         self.width = buffer[off_virt_wh + 3] as i32;
         self.height = buffer[off_virt_wh + 4] as i32;
         self.depth = buffer[off_depth + 3] as i32;
@@ -92,5 +102,3 @@ impl VideoCoreDriver {
         self.pitch
     }
 }
-
-

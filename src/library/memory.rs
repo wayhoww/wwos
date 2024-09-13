@@ -16,10 +16,8 @@ unsafe impl core::alloc::GlobalAlloc for DummyAllocator {
         ptr_aligned as *mut u8
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
-    }
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {}
 }
 
 #[global_allocator]
 static GLOBAL: DummyAllocator = DummyAllocator;
-

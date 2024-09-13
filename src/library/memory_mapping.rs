@@ -1,6 +1,5 @@
 use alloc::vec::Vec;
 
-
 pub struct MemoryMappingItem {
     pub begin_up: usize,
     pub begin_down: usize,
@@ -8,21 +7,19 @@ pub struct MemoryMappingItem {
 }
 
 pub struct MemoryMapping {
-    pub items: Vec<MemoryMappingItem>
+    pub items: Vec<MemoryMappingItem>,
 }
 
 impl MemoryMapping {
     pub fn new() -> MemoryMapping {
-        MemoryMapping {
-            items: Vec::new()
-        }
+        MemoryMapping { items: Vec::new() }
     }
 
     pub fn add(&mut self, begin_up: usize, begin_down: usize, size: usize) {
         self.items.push(MemoryMappingItem {
             begin_up,
             begin_down,
-            size
+            size,
         });
     }
 
@@ -45,16 +42,14 @@ impl MemoryMapping {
     }
 }
 
-
 pub struct MemoryMappingChain {
-    pub mappings: Vec<MemoryMapping>
+    pub mappings: Vec<MemoryMapping>,
 }
-
 
 impl MemoryMappingChain {
     pub fn new() -> MemoryMappingChain {
         MemoryMappingChain {
-            mappings: Vec::new()
+            mappings: Vec::new(),
         }
     }
 

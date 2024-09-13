@@ -12,7 +12,7 @@
 BOARD = raspi4b
 
 ifeq ($(BOARD),raspi4b)
-    QEMU_FLAGS = -machine raspi4b -serial stdio -dtb bcm2711-rpi-4-b.dtb
+    QEMU_FLAGS = -machine raspi4b -serial stdio -dtb emulation/bcm2711-rpi-4-b.dtb
 	BOOT_OFFSET = 0x80000
 	IMAGE_TYPE = BIN
 	BINARY = kernel8.img

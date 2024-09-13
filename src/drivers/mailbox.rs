@@ -7,7 +7,7 @@ use crate::library::{DeviceTreeNode, MemoryAlignedArray};
 use super::Driver;
 
 pub struct MailboxPropertiesBuffer {
-    buffer: MemoryAlignedArray<u32>
+    buffer: MemoryAlignedArray<u32>,
 }
 
 impl MailboxPropertiesBuffer {
@@ -23,7 +23,8 @@ impl MailboxPropertiesBuffer {
 
         let size = values.len();
         self.buffer.append(tag_identifier);
-        self.buffer.append((size as u32) * (core::mem::size_of::<u32>() as u32));
+        self.buffer
+            .append((size as u32) * (core::mem::size_of::<u32>() as u32));
         self.buffer.append(0);
         for value in values {
             self.buffer.append(*value);
@@ -46,17 +47,17 @@ impl MailboxPropertiesBuffer {
     }
 
     pub fn get_buffer(&self) -> &MemoryAlignedArray<u32> {
-        return &self.buffer
+        return &self.buffer;
     }
 }
 
 enum MailboxStatus {
     Full = 0x80000000,
-    Empty = 0x40000000
+    Empty = 0x40000000,
 }
 
 pub struct Mailbox {
-    addr: *mut u32
+    addr: *mut u32,
 }
 
 const MAILBOX_OFFSET_DATA: isize = 0x00;
@@ -65,17 +66,17 @@ const MAILBOX_OFFSET_SENDER: isize = 0x14;
 const MAILBOX_OFFSET_STATUS: isize = 0x18;
 const MAILBOX_OFFSET_CONFIG: isize = 0x1c;
 
-
 impl Mailbox {
     pub fn new(address: *mut u32) -> Self {
-        Self {
-            addr: address
-        }
+        Self { addr: address }
     }
 
     fn read(&self, channel: u32) -> u32 {
         loop {
-            while unsafe { read_volatile(self.addr.offset(MAILBOX_OFFSET_STATUS)) } & MailboxStatus::Empty as u32 != 0 {}
+            while unsafe { read_volatile(self.addr.offset(MAILBOX_OFFSET_STATUS)) }
+                & MailboxStatus::Empty as u32
+                != 0
+            {}
             let data = unsafe { read_volatile(self.addr.offset(MAILBOX_OFFSET_DATA)) };
             if data & 0xf == channel {
                 return data >> 4;
@@ -85,7 +86,7 @@ impl Mailbox {
 
     fn write(&self, data: u32, channel: u32) {
         let addr_status = unsafe { self.addr.byte_offset(MAILBOX_OFFSET_STATUS) };
-        
+
         while unsafe { read_volatile(addr_status) } & MailboxStatus::Full as u32 != 0 {}
         let assembled = (data << 4) | (channel & 0xf);
         unsafe { write_volatile(self.addr.offset(MAILBOX_OFFSET_DATA), assembled) };
@@ -98,9 +99,10 @@ impl Mailbox {
     }
 }
 
-
 impl Driver for Mailbox {
-    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> { None }
+    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
+        None
+    }
 }
 
 pub struct MailboxDriverFactory;
@@ -109,7 +111,12 @@ impl super::DriverFactory for MailboxDriverFactory {
         return vec!["brcm,bcm2711-vchiq"];
     }
 
-    fn instantiate(&self, device: &crate::library::DeviceTreeNode, parent: Option<&DeviceTreeNode>, mapping_chain: &crate::library::MemoryMappingChain) -> Option<alloc::boxed::Box<dyn super::Driver>> {
+    fn instantiate(
+        &self,
+        device: &crate::library::DeviceTreeNode,
+        parent: Option<&DeviceTreeNode>,
+        mapping_chain: &crate::library::MemoryMappingChain,
+    ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
         let reg = device.find_property_by_name("reg")?;
         let lower_addr = u32::from_be_bytes(reg[0..4].try_into().unwrap()) as *mut u32;
         let upper_addr = mapping_chain.get_up(lower_addr as usize)?;

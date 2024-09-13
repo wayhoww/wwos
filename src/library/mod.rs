@@ -1,11 +1,10 @@
-mod memory_aligned_array;
-mod device_tree;
 mod device_init;
-mod memory_mapping;
+mod device_tree;
 mod memory;
+mod memory_aligned_array;
+mod memory_mapping;
 
-pub use memory_aligned_array::*;
-pub use device_tree::*;
 pub use device_init::*;
+pub use device_tree::*;
+pub use memory_aligned_array::*;
 pub use memory_mapping::*;
-pub use memory::*;
