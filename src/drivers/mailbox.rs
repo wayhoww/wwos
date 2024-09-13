@@ -47,7 +47,7 @@ impl MailboxPropertiesBuffer {
     }
 
     pub fn get_buffer(&self) -> &MemoryAlignedArray<u32> {
-        return &self.buffer;
+        &self.buffer
     }
 }
 
@@ -108,7 +108,7 @@ impl Driver for Mailbox {
 pub struct MailboxDriverFactory;
 impl super::DriverFactory for MailboxDriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
-        return vec!["brcm,bcm2711-vchiq"];
+        vec!["brcm,bcm2711-vchiq"]
     }
 
     fn instantiate(

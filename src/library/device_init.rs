@@ -47,7 +47,7 @@ fn initialize_hardwares_recursive(
             continue;
         }
 
-        let driver_instance = driver.instantiate(node, parent, &mapping_chain);
+        let driver_instance = driver.instantiate(node, parent, mapping_chain);
         if driver_instance.is_none() {
             // TODO: logging
             info!("failed to initialize driver for device `{}`", path_string);

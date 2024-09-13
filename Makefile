@@ -39,6 +39,10 @@ build: target/linker.ld
 		llvm-objcopy -O binary target/aarch64-unknown-none/debug/wwos target/aarch64-unknown-none/debug/$(BINARY)
     endif
 
+.PHONY: clippy
+clippy:
+	RUSTFLAGS='--cfg WWOS_BOARD="$(BOARD)"' cargo +nightly clippy --fix -Z build-std=core,alloc --target buildscripts/aarch64-unknown-none.json
+
 .PHONY: run
 run: build
 	qemu-system-aarch64 $(QEMU_FLAGS) -kernel target/aarch64-unknown-none/debug/$(BINARY) -d guest_errors

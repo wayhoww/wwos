@@ -83,7 +83,7 @@ fn draw_rect(
 // this function shall be called only once, in one thread
 unsafe fn initialize_logging_system() {
     let mut drivers = get_serial32_drivers();
-    if drivers.len() > 0 {
+    if !drivers.is_empty() {
         static mut UART_LOGGER: Option<UartLogger> = None;
         UART_LOGGER = Some(UartLogger::new(drivers.remove(0)));
         log::set_logger_racy(UART_LOGGER.as_ref().unwrap()).unwrap();

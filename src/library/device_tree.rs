@@ -74,9 +74,9 @@ impl core::fmt::Debug for DeviceTreePropertyValue {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let str = core::str::from_utf8(&self.0);
         if let Ok(str) = str {
-            return core::fmt::Debug::fmt(str, f);
+            core::fmt::Debug::fmt(str, f)
         } else {
-            return core::fmt::Debug::fmt(&self.0, f);
+            core::fmt::Debug::fmt(&self.0, f)
         }
     }
 }
@@ -305,7 +305,7 @@ impl DeviceTreeNode {
         Some((address, size))
     }
 
-    pub fn get_compatibles<'t>(&'t self) -> Vec<&'t str> {
+    pub fn get_compatibles(&self) -> Vec<&str> {
         let mut out = Vec::new();
         if let Some(compatibles) = self.find_property_by_name("compatible") {
             let mut p = 0;

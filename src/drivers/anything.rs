@@ -16,7 +16,7 @@ impl Driver for DummyVirtDriver {
 pub struct DummyVirtDriverFactory;
 impl super::DriverFactory for DummyVirtDriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
-        return vec!["linux,dummy-virt"];
+        vec!["linux,dummy-virt"]
     }
 
     fn instantiate(
@@ -25,7 +25,7 @@ impl super::DriverFactory for DummyVirtDriverFactory {
         _parent: Option<&DeviceTreeNode>,
         _mapping_chain: &crate::library::MemoryMappingChain,
     ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
-        return Some(alloc::boxed::Box::new(DummyVirtDriver));
+        Some(alloc::boxed::Box::new(DummyVirtDriver))
     }
 }
 
@@ -41,7 +41,7 @@ impl Driver for Bcm2711Driver {
 pub struct Bcm2711DriverFactory;
 impl super::DriverFactory for Bcm2711DriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
-        return vec!["brcm,bcm2711"];
+        vec!["brcm,bcm2711"]
     }
 
     fn instantiate(
@@ -50,7 +50,7 @@ impl super::DriverFactory for Bcm2711DriverFactory {
         _parent: Option<&DeviceTreeNode>,
         _mapping_chain: &crate::library::MemoryMappingChain,
     ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
-        return Some(alloc::boxed::Box::new(Bcm2711Driver));
+        Some(alloc::boxed::Box::new(Bcm2711Driver))
     }
 }
 
@@ -64,7 +64,7 @@ impl Driver for SimpleBusDriver {
 pub struct SimpleBusDriverFactory;
 impl super::DriverFactory for SimpleBusDriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
-        return vec!["simple-bus"];
+        vec!["simple-bus"]
     }
 
     fn instantiate(
@@ -73,6 +73,6 @@ impl super::DriverFactory for SimpleBusDriverFactory {
         _parent: Option<&DeviceTreeNode>,
         _mapping_chain: &crate::library::MemoryMappingChain,
     ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
-        return Some(alloc::boxed::Box::new(SimpleBusDriver));
+        Some(alloc::boxed::Box::new(SimpleBusDriver))
     }
 }

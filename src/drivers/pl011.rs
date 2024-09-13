@@ -48,7 +48,7 @@ impl Serial32Driver for PL011Driver {
 pub struct PL011DriverFactory;
 impl DriverFactory for PL011DriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
-        return vec!["arm,pl011"];
+        vec!["arm,pl011"]
     }
 
     fn instantiate(
