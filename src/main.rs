@@ -2,17 +2,20 @@
 #![no_main]
 #![allow(dead_code)]
 
-mod bootloaders;
+mod arch;
+mod boot;
 mod drivers;
 mod library;
 
 extern crate alloc;
 
+use arch::{get_current_el, initialize_arch, start_userspace_execution, system_call};
 use core::cell::RefCell;
 use core::fmt::Write;
+use core::ptr::write_volatile;
 use drivers::Serial32Driver;
 use library::{get_serial32_drivers, initialize_hardwares, DeviceTree};
-use log::*;
+use log::info;
 
 use log::{Level, Metadata, Record};
 
@@ -40,7 +43,7 @@ impl log::Log for UartLogger {
         if self.enabled(record.metadata()) {
             writeln!(
                 self.uart.borrow_mut(),
-                "{} - {}",
+                "{} - {}\r",
                 record.level(),
                 record.args()
             )
@@ -78,6 +81,18 @@ fn draw_rect(
     }
 }
 
+struct Uart;
+
+impl core::fmt::Write for Uart {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for c in s.chars() {
+            unsafe { write_volatile(0xfe201000usize as *mut u8, c as u8) }
+        }
+
+        Ok(())
+    }
+}
+
 // this function shall be called only once, in one thread
 unsafe fn initialize_logging_system() {
     let mut drivers = get_serial32_drivers();
@@ -91,23 +106,54 @@ unsafe fn initialize_logging_system() {
 
 static mut DEVICE_TREE: Option<DeviceTree> = None;
 
+fn usermain() {
+    info!("Hello, world from userspace!");
+
+    system_call(0, 12);
+
+    info!("Hello, world from userspace!");
+
+    loop {}
+}
+
+
+fn initialize_translation_table() {
+    
+}
+
 #[no_mangle]
 fn kmain(arg0: usize) -> ! {
-    unsafe {
-        DEVICE_TREE = Some(DeviceTree::from_memory(arg0 as *const u8));
 
-        // writeln!(Uart, "{:#?}", DEVICE_TREE).unwrap();
 
-        initialize_hardwares(DEVICE_TREE.as_ref().unwrap());
-        initialize_logging_system();
-    }
 
-    info!("Hello, world!");
+    // initialize_arch();
+
+    // unsafe {
+    //     DEVICE_TREE = Some(DeviceTree::from_memory(arg0 as *const u8));
+
+    //     initialize_hardwares(DEVICE_TREE.as_ref().unwrap());
+    //     initialize_logging_system();
+
+    //     info!("Hello, world!");
+    //     let el = get_current_el();
+    //     info!("Current EL: {}", el);
+
+    //     // system_call(0, 10);
+    //     // system_call(0, 10);
+    //     // system_call(0, 10);
+    //     // system_call(0, 10);
+    // }
+
+    // unsafe {
+    //     start_userspace_execution(usermain as usize);
+    // }
+
     loop {}
 }
 
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
+    info!("Panic: {:?}", _info);
     loop {}
 }

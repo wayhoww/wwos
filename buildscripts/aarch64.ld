@@ -10,5 +10,8 @@ SECTIONS {
     . = ALIGN(8);
     . = . + 2M;
     stack_top = .;
+
+    . = . + 2M;
+    el0_stack_top = .;
 }
 
