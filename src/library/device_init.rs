@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use alloc::vec;
 use alloc::{boxed::Box, string::String};
 use log::{info, warn};
 
@@ -128,13 +129,13 @@ fn initialize_hardwares_internal(
 static mut DRIVER_INSTANCES: Option<Vec<DriverInstance>> = None;
 
 pub fn initialize_hardwares(tree: &DeviceTree) {
-    let mut driver_factories: Vec<Box<dyn DriverFactory>> = Vec::new();
-
-    driver_factories.push(Box::new(drivers::PL011DriverFactory));
-    driver_factories.push(Box::new(drivers::DummyVirtDriverFactory));
-    driver_factories.push(Box::new(drivers::Bcm2711DriverFactory));
-    driver_factories.push(Box::new(drivers::SimpleBusDriverFactory));
-    driver_factories.push(Box::new(drivers::MailboxDriverFactory));
+    let driver_factories: Vec<Box<dyn DriverFactory>> = vec![
+        Box::new(drivers::PL011DriverFactory),
+        Box::new(drivers::DummyVirtDriverFactory),
+        Box::new(drivers::Bcm2711DriverFactory),
+        Box::new(drivers::SimpleBusDriverFactory),
+        Box::new(drivers::MailboxDriverFactory),
+    ];
 
     let instances = initialize_hardwares_internal(tree, driver_factories);
     unsafe {

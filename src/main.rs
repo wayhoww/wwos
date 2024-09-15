@@ -9,10 +9,7 @@ mod library;
 
 extern crate alloc;
 
-use alloc::alloc::alloc;
-use arch::{get_current_el, initialize_arch, start_userspace_execution, system_call};
-use core::alloc::Layout;
-use core::arch::asm;
+use arch::{initialize_arch, system_call};
 use core::cell::RefCell;
 use core::fmt::Write;
 use core::ptr::write_volatile;
@@ -177,16 +174,16 @@ fn usermain() {
 
 #[no_mangle]
 fn kmain(arg0: usize) -> ! {
-    // initialize_arch();
+    initialize_arch();
 
-    // unsafe {
-    //     DEVICE_TREE = Some(DeviceTree::from_memory(arg0 as *const u8));
+    unsafe {
+        DEVICE_TREE = Some(DeviceTree::from_memory(arg0 as *const u8));
 
-    //     initialize_hardwares(DEVICE_TREE.as_ref().unwrap());
-    //     initialize_logging_system();
-    // }
+        initialize_hardwares(DEVICE_TREE.as_ref().unwrap());
+        initialize_logging_system();
+    }
 
-    // info!("Hello, world!");
+    info!("Hello, world!");
 
     // initialize_translation_table();
 

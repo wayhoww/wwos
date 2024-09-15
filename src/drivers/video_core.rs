@@ -67,7 +67,7 @@ impl VideoCoreDriver {
 
         prop_init.finish();
 
-        self.mailbox.write_properties(&mut prop_init, self.channel);
+        self.mailbox.write_properties(&prop_init, self.channel);
 
         let buffer = prop_init.get_buffer();
 

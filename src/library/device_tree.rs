@@ -281,26 +281,21 @@ impl DeviceTreeNode {
         let n_size_cells = parent.get_n_size_cells()? as usize;
         let regs = self.find_property_by_name("reg")?;
 
-        let address;
-        let size;
-
-        if n_address_cells == 1 {
-            address = u32::from_be_bytes(regs[0..4].try_into().unwrap()) as usize;
+        let address = if n_address_cells == 1 {
+            u32::from_be_bytes(regs[0..4].try_into().unwrap()) as usize
         } else {
-            address = u64::from_be_bytes(regs[0..8].try_into().unwrap()) as usize;
-        }
+            u64::from_be_bytes(regs[0..8].try_into().unwrap()) as usize
+        };
 
         let size_begin = 4 * n_address_cells;
 
-        if n_size_cells == 0 {
-            size = 0usize;
+        let size = if n_size_cells == 0 {
+            0usize
         } else if n_size_cells == 1 {
-            size =
-                u32::from_be_bytes(regs[size_begin..size_begin + 4].try_into().unwrap()) as usize;
+            u32::from_be_bytes(regs[size_begin..size_begin + 4].try_into().unwrap()) as usize
         } else {
-            size =
-                u64::from_be_bytes(regs[size_begin..size_begin + 8].try_into().unwrap()) as usize;
-        }
+            u64::from_be_bytes(regs[size_begin..size_begin + 8].try_into().unwrap()) as usize
+        };
 
         Some((address, size))
     }
