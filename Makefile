@@ -17,7 +17,7 @@ else
 endif
 
 ifeq ($(LOGGING),ON)
-	QEMU_FLAGS += -d int,in_asm,guest_errors -D qemu.log
+	QEMU_FLAGS += -d int,in_asm,mmu,guest_errors -D qemu.log
 else
 	QEMU_FLAGS += -d guest_errors
 endif
