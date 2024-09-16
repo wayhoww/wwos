@@ -1,6 +1,5 @@
 mod device_init;
 mod device_tree;
-mod memory;
 mod memory_aligned_array;
 mod memory_mapping;
 

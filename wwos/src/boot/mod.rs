@@ -13,6 +13,8 @@ _start:
 "#
 );
 
+// mmu reference: https://developer.arm.com/documentation/102416/0100
+
 #[cfg(WWOS_BOARD = "raspi4b")]
 core::arch::global_asm!(
     r#"

@@ -2,6 +2,10 @@ use core::arch::asm;
 
 use log::info;
 
+use crate::{memory::{set_translation_table, MemoryPage}, Uart, MEMORY_PAGES};
+
+use core::fmt::Write;
+
 unsafe fn read_mpidr_el1() -> u64 {
     let mut mpidr_el1: u64;
     asm!("mrs {x}, mpidr_el1", x = out(reg) mpidr_el1,);
@@ -58,23 +62,49 @@ unsafe fn switch_to_el1() {
     let _tmp2: usize;
 
     asm!("
-        mov x0, #(0b1 << 31);
-        msr hcr_el2, x0;
+        // Configure HCR_EL2
+        // ------------------
+        ORR      w0, wzr, #(1 << 3)             // FMO=1
+        ORR      x0, x0,  #(1 << 4)             // IMO=1
+        ORR      x0, x0,  #(1 << 31)            // RW=1          NS.EL1 is AArch64
+                                                // TGE=0         Entry to NS.EL1 is possible
+                                                // VM=0          Stage 2 MMU disabled
+        MSR      HCR_EL2, x0
 
-        mov {tmp}, #0b0101;
-        msr spsr_el2, {tmp};
+
+        // Set up VMPIDR_EL2/VPIDR_EL1
+        // ---------------------------
+        MRS      x0, MIDR_EL1
+        MSR      VPIDR_EL2, x0
+        MRS      x0, MPIDR_EL1
+        MSR      VMPIDR_EL2, x0
         
-        mov {tmp}, sp;
-        msr sp_el1, {tmp};
 
-        adr {tmp}, .;
-        add {tmp}, {tmp}, #16;
-        msr elr_el2, {tmp};
+        // Set VMID
+        // ---------
+        // Although we are not using stage 2 translation, NS.EL1 still cares
+        // about the VMID
+        MSR     VTTBR_EL2, xzr
+
+
+        // Set SCTLRs for EL1/2 to safe values
+        // ------------------------------------
+        MSR     SCTLR_EL2, xzr
+        MSR     SCTLR_EL1, xzr
+
+        mov x0, #0b0101;
+        msr spsr_el2, x0;
+        
+        mov x0, sp;
+        msr sp_el1, x0;
+
+        adr x0, .;
+        add x0, x0, #16;
+        msr elr_el2, x0;
         eret
 
         nop
-        ", 
-        tmp = out(reg) _tmp,
+        "
     );
 }
 
@@ -108,10 +138,17 @@ unsafe fn get_ec_bits() -> u64 {
     (ec_bits >> 26) & 0b111111
 }
 
+unsafe fn get_far_el1() -> u64 {
+    let mut far_el1: u64;
+    asm!("mrs {x}, far_el1", x = out(reg) far_el1);
+    far_el1
+}
+
 enum ExceptionType {
     Unknown,
     Trapped,
     SystemCall,
+    DataAbort,
     Other,
 }
 
@@ -123,6 +160,8 @@ impl ExceptionType {
             ExceptionType::Trapped
         } else if ec_bits == 0b010001 || ec_bits == 0b010101 {
             ExceptionType::SystemCall
+        } else if ec_bits == 0b100100 || ec_bits == 0b100101 {
+            ExceptionType::DataAbort 
         } else {
             ExceptionType::Other
         }
@@ -152,6 +191,9 @@ fn handle_exception(arg0: u64, arg1: u64) {
             info!("Trapped exception");
         }
         ExceptionType::SystemCall => handle_system_call(arg0, arg1),
+        ExceptionType::DataAbort => {
+            info!("Data abort");
+        }
         ExceptionType::Other => {
             info!("Other exception");
         }
@@ -284,5 +326,36 @@ lower_el_aarch32_fiq:
 .balign 0x80
 lower_el_aarch32_serror:
     b       protect_and_handle_exception;
+
+
+
+    // TT block entries templates   (L1 and L2, NOT L3)
+    // Assuming table contents:
+    // 0 = b01000100 = Normal, Inner/Outer Non-Cacheable
+    // 1 = b11111111 = Normal, Inner/Outer WB/WA/RA
+    // 2 = b00000000 = Device-nGnRnE
+    .equ TT_S1_FAULT,           0x0
+    .equ TT_S1_NORMAL_NO_CACHE, 0x00000000000000401    // Index = 0, AF=1
+    .equ TT_S1_NORMAL_WBWA,     0x00000000000000405    // Index = 1, AF=1
+    .equ TT_S1_DEVICE_nGnRnE,   0x00600000000000409    // Index = 2, AF=1, PXN=1, UXN=1
+
+
+
+// ------------------------------------------------------------
+// Translation tables
+// ------------------------------------------------------------
+
+    .section  TT,"ax"
+    .align 12
+
+    .global tt_l1_base
+tt_l1_base:
+    .fill 4096 , 1 , 0
+
+
+    .align 12
+    .global tt_l2_base
+tt_l2_base:
+    .fill 4096 , 1 , 0
 "#
 );

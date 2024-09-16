@@ -1,4 +1,5 @@
 BOARD 	= qemu_aarch64_virt9
+ACCEL   = ON
 LOGGING = OFF
 
 ifeq ($(BOARD),raspi4b)
@@ -7,8 +8,12 @@ ifeq ($(BOARD),raspi4b)
 	IMAGE_TYPE = BIN
 	BINARY = kernel8.img
 else ifeq ($(BOARD),qemu_aarch64_virt9)
-    # QEMU_FLAGS = -machine virt -cpu cortex-a72 -nographic -monitor none
-    QEMU_FLAGS = -machine virt -cpu host -accel hvf -monitor none -serial stdio -nographic
+    QEMU_FLAGS = -machine virt -monitor none -serial stdio -nographic
+	ifeq ($(ACCEL),ON)
+		QEMU_FLAGS += -accel hvf -cpu host
+	else
+		QEMU_FLAGS += -cpu cortex-a72 
+	endif
 	BOOT_OFFSET = 0x40100000
 	IMAGE_TYPE = ELF
 	BINARY = wwos
@@ -17,7 +22,7 @@ else
 endif
 
 ifeq ($(LOGGING),ON)
-	QEMU_FLAGS += -d int,in_asm,mmu,guest_errors -D qemu.log
+	QEMU_FLAGS += -d int,in_asm,guest_errors -D qemu.log
 else
 	QEMU_FLAGS += -d guest_errors
 endif
