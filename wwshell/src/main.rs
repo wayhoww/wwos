@@ -27,7 +27,6 @@ pub fn system_call(call_id: u64, arg: u64) {
     }
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}

@@ -422,7 +422,6 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
     loop {}
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     info!("Panic: {:?}", _info);
