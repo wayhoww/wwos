@@ -13,7 +13,7 @@ extern crate alloc;
 
 use alloc::{boxed::Box, rc::Rc};
 use alloc::vec::Vec;
-use arch::{handle_exception, initialize_arch, start_userspace_execution, system_call, DataAbortHandler, KERNEL_DATA_ABORT_HANDLER, PROCESS};
+use arch::{handle_exception, initialize_arch, start_userspace_execution, system_call, DataAbortHandler, TranslationTable, KERNEL_DATA_ABORT_HANDLER, PAGE_SIZE, PROCESS};
 use process::Process;
 use core::arch::asm;
 use core::cell::RefCell;
@@ -23,7 +23,7 @@ use kernel_drivers::Serial32Driver;
 use library::{initialize_kernel_hardwares, DeviceTree, DriverInstance};
 use log::info;
 use memory::{
-    MemoryBlock, MemoryBlockAttributes, TranslationTable, TranslationTableAarch64, KERNEL_MEMORY_ALLOCATOR, PAGE_SIZE
+    MemoryBlock, MemoryBlockAttributes, KERNEL_MEMORY_ALLOCATOR
 };
 
 use log::{Level, Metadata, Record};
@@ -108,58 +108,6 @@ fn initialize_logging_system() {
         }
         log::set_max_level(log::LevelFilter::Info);
     }
-}
-
-fn usermain() {
-    info!("Hello, world from userspace!");
-
-    system_call(0, 12);
-
-    info!("Hello, world from userspace!");
-
-    loop {}
-}
-
-fn set_tcr_el1(tcr: u64) {
-    unsafe {
-        asm!("msr tcr_el1, {x}", x = in(reg) tcr);
-    }
-}
-
-fn get_tcr_el1() -> u64 {
-    let mut tcr_el1: u64;
-    unsafe {
-        asm!("mrs {x}, tcr_el1", x = out(reg) tcr_el1);
-    }
-    tcr_el1
-}
-
-fn get_sctlr_el1() -> u64 {
-    let mut sctlr_el1: u64;
-    unsafe {
-        asm!("mrs {x}, sctlr_el1", x = out(reg) sctlr_el1);
-    }
-    sctlr_el1
-}
-
-fn set_sctlr_el1(sctlr: u64) {
-    unsafe {
-        asm!("msr sctlr_el1, {x}", x = in(reg) sctlr);
-    }
-}
-
-fn set_ttbr0_el1(ttbr: u64) {
-    unsafe {
-        asm!("msr ttbr0_el1, {x}", x = in(reg) ttbr);
-    }
-}
-
-fn get_id_aa64mmfr0_el1() -> u64 {
-    let mut id_aa64mmfr0_el1: u64;
-    unsafe {
-        asm!("mrs {x}, id_aa64mmfr0_el1", x = out(reg) id_aa64mmfr0_el1);
-    }
-    id_aa64mmfr0_el1
 }
 
 fn set_bits(val: u64, bits: u64, begin: u64, end: u64) -> u64 {
@@ -286,7 +234,7 @@ impl PhysicalMemoryPageAllocator {
 }
 
 struct KernelPageAllocator {
-    table: TranslationTableAarch64,
+    table: TranslationTable,
     physical_allocator: Rc<RefCell<PhysicalMemoryPageAllocator>>,
 }
 
@@ -316,16 +264,10 @@ impl DataAbortHandler for KernelPageAllocator {
 const PROCESS_BINARY_BEGIN: usize = 0x400000;
 const SHARED_REGION_BEGIN: usize = PAGE_SIZE;
 
-extern "C" fn test_userspace_execution() {
-    loop {
-        unsafe { asm!("b .") };
-    }
-}
-
 
 struct UserProcessDataAbortHandler {
     physical_allocator: Rc<RefCell<PhysicalMemoryPageAllocator>>,
-    translation_table: Box<dyn TranslationTable>,
+    translation_table: TranslationTable,
 }
 
 impl DataAbortHandler for UserProcessDataAbortHandler {
@@ -432,8 +374,7 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
         unsafe { KERNEL_MEMORY_BLOCKS.push(block) };
     }
 
-    let kernel_memory_mapping = 
-        memory::TranslationTableAarch64::from_memory_pages(unsafe { KERNEL_MEMORY_BLOCKS.as_slice() });
+    let kernel_memory_mapping = TranslationTable::from_memory_pages(unsafe { KERNEL_MEMORY_BLOCKS.as_slice() });
     
     info!("right before activate kernel_memory_mapping");
 

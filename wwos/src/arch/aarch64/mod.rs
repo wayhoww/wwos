@@ -1,9 +1,15 @@
+mod process;
+mod memory;
+
+pub use process::*;
+pub use memory::*;
+
 use core::arch::asm;
 
 use alloc::boxed::Box;
 use log::info;
 
-use crate::{process::{CoreSiteState, Process}, SHARED_REGION_BEGIN};
+use crate::{process::Process, SHARED_REGION_BEGIN};
 
 unsafe fn read_mpidr_el1() -> u64 {
     let mut mpidr_el1: u64;
@@ -170,12 +176,6 @@ impl ExceptionType {
 
 fn handle_system_call(syscall_id: u64, arg: u64) {
     info!("System call: id={}, arg={}, ", syscall_id, arg);
-    // print current stack pointer
-    // let sp: usize;
-    // unsafe {
-    //     asm!("mov {sp}, sp", sp = out(reg) sp);
-    // }
-    // info!("Current stack pointer: {:#x}", sp);
 }
 
 pub trait DataAbortHandler {
