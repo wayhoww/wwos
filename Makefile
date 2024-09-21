@@ -28,13 +28,22 @@ else
 endif
 
 .PHONY: build
-build:
-	mkdir -p intermediate
-	gcc -E -P -x c buildscripts/aarch64.ld -o intermediate/linker.ld -DBOOT_OFFSET=$(BOOT_OFFSET)
-	RUSTFLAGS='--cfg WWOS_BOARD="$(BOARD)"' cargo +nightly build -Z build-std=core,alloc --target buildscripts/aarch64-unknown-none.json
+build: export RUSTFLAGS = --cfg WWOS_BOARD="$(BOARD)"
+build: intermediate/linker.ld
+	cargo +nightly build --package wwshell -Z build-std=core,alloc --target buildscripts/aarch64-unknown-wwos.json
+	llvm-objcopy -O binary target/aarch64-unknown-wwos/debug/wwshell intermediate/wwos.blob
+
+	cargo clean --package wwos_blob --target buildscripts/aarch64-unknown-none.json
+
+	cargo +nightly build --package wwos -Z build-std=core,alloc --target buildscripts/aarch64-unknown-none.json
+
 ifeq ($(IMAGE_TYPE),BIN)
 	llvm-objcopy -O binary target/aarch64-unknown-none/debug/wwos target/aarch64-unknown-none/debug/$(BINARY);
 endif
+
+intermediate/linker.ld: buildscripts/aarch64.ld
+	mkdir -p intermediate
+	gcc -E -P -x c buildscripts/aarch64.ld -o intermediate/linker.ld -DBOOT_OFFSET=$(BOOT_OFFSET)
 
 .PHONY: run
 run: build

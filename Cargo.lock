@@ -18,4 +18,13 @@ version = "0.1.0"
 dependencies = [
  "log",
  "wwmalloc",
+ "wwos_blob",
 ]
+
+[[package]]
+name = "wwos_blob"
+version = "0.1.0"
+
+[[package]]
+name = "wwshell"
+version = "0.1.0"

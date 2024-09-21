@@ -99,11 +99,7 @@ impl Mailbox {
     }
 }
 
-impl Driver for Mailbox {
-    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
-        None
-    }
-}
+impl Driver for Mailbox {}
 
 pub struct MailboxDriverFactory;
 impl super::DriverFactory for MailboxDriverFactory {

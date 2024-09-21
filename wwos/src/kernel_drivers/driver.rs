@@ -13,6 +13,15 @@ pub trait Driver {
     fn as_serial32_mut(&mut self) -> Option<&mut dyn Serial32Driver> {
         None
     }
+
+    fn as_memory(&self) -> Option<&dyn MemoryDriver> {
+        None
+    }
+}
+
+pub trait MemoryDriver: Driver {
+    fn get_address(&self) -> usize;
+    fn get_size(&self) -> usize;
 }
 
 pub trait Serial32Driver: Driver {

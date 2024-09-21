@@ -1,5 +1,6 @@
 [workspace]
+resolver = "2"
 members = [
     "wwos",
-    "wwmalloc",
+    "wwmalloc", "wwshell", "wwos_blob",
 ]

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 log = "0.4"
+wwos_blob = { path = "../wwos_blob" }
 wwmalloc = { path = "../wwmalloc" }
 
 [lints.rust]

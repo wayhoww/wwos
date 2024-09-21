@@ -1,7 +1,9 @@
+use core::arch::global_asm;
+
 #[cfg(WWOS_BOARD = "qemu_aarch64_virt9")]
 core::arch::global_asm!(
     r#"
-.section ".text.boot"  
+.section ".text.wwos.boot"  
 
 .global _start
 
@@ -18,7 +20,7 @@ _start:
 #[cfg(WWOS_BOARD = "raspi4b")]
 core::arch::global_asm!(
     r#"
-.section ".text.boot"  
+.section ".text.wwos.boot"  
 
 .global _start
 
@@ -28,3 +30,4 @@ _start:
     bl      kmain
 "#
 );
+

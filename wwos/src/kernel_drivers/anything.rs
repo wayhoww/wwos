@@ -1,10 +1,12 @@
 // linux,dummy-virt
 
+use core::{fmt::Write, ptr::write_volatile};
+
 use alloc::vec;
 
 use crate::library::{DeviceTreeNode, MemoryMapping};
 
-use super::Driver;
+use super::{Driver, MemoryDriver};
 
 pub struct DummyVirtDriver;
 impl Driver for DummyVirtDriver {
@@ -33,7 +35,9 @@ pub struct Bcm2711Driver;
 impl Driver for Bcm2711Driver {
     fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
         let mut mapping = MemoryMapping::new();
-        mapping.add(0xfc00_0000, 0x7c00_0000, 0x400_0000);
+
+        mapping.add(0xfc00_0000, 0x7c00_0000, 0x400_0000);          // peripherals
+        mapping.add(0x0_0000_0000, 0x0_0000_0000, 0x4_0000_0000);   // memory
         Some(mapping)
     }
 }
@@ -74,5 +78,54 @@ impl super::DriverFactory for SimpleBusDriverFactory {
         _mapping_chain: &crate::library::MemoryMappingChain,
     ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
         Some(alloc::boxed::Box::new(SimpleBusDriver))
+    }
+}
+
+pub struct WwosMemoryDriver {
+    addr: usize,
+    size: usize,
+}
+
+impl Driver for WwosMemoryDriver {
+    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
+        return None;
+    }
+
+    fn as_memory(&self) -> Option<&dyn MemoryDriver> {
+        Some(self)
+    }
+}
+
+pub struct WwosMemoryDriverFactory;
+
+
+impl super::DriverFactory for WwosMemoryDriverFactory {
+    fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {
+        vec!["wwos,memory"]
+    }
+
+    fn instantiate(
+        &self,
+        device: &crate::library::DeviceTreeNode,
+        parent: Option<&DeviceTreeNode>,
+        mapping_chain: &crate::library::MemoryMappingChain,
+    ) -> Option<alloc::boxed::Box<dyn super::Driver>> {
+        let (addr, size) = device.get_address_size(parent?)?;
+        let addr = mapping_chain.get_up(addr)? as *mut u32;
+
+        Some(alloc::boxed::Box::new(WwosMemoryDriver {
+            addr: addr as usize,
+            size,
+        }))
+    }
+}
+
+impl MemoryDriver for WwosMemoryDriver {
+    fn get_address(&self) -> usize {
+        self.addr
+    }
+
+    fn get_size(&self) -> usize {
+        self.size
     }
 }

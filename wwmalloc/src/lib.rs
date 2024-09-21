@@ -1,31 +1,30 @@
 #![no_std]
 
-use core::ptr::write;
-use core::{alloc::Layout, ptr::write_volatile};
-use core::fmt::{Write};
-
-struct Uart;
-
-impl core::fmt::Write for Uart {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        for c in s.chars() {
-            unsafe { write_volatile(0xfe201000usize as *mut u8, c as u8) }
-        }
-
-        Ok(())
-    }
-}
-
+use core::{alloc::Layout, fmt::Write, ptr::write_volatile};
 
 #[derive(Clone, Copy, Debug)]
 struct ChunkHeader {
-    size: usize,  // size is the actual size of this chunk except header. size for alignment is included.
+    size: usize, // size is the actual size of this chunk except header. size for alignment is included.
     next: *mut ChunkHeader, // reuse as 'begin of this'
 }
 
-
 pub struct Allocator {
-    head: *mut ChunkHeader, // head itself is always empty.
+    head: *mut ChunkHeader,
+    begin: usize,
+    size: usize,
+}
+
+const SIZE_OF_HEADER: usize = core::mem::size_of::<ChunkHeader>();
+
+struct Uart;
+
+impl Write for Uart {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for c in s.chars() {
+            unsafe { write_volatile(0x0900_0000 as *mut u32, c as u32) };
+        }
+        Ok(())
+    }
 }
 
 impl Allocator {
@@ -34,52 +33,45 @@ impl Allocator {
             panic!("size is too small");
         }
 
-        let head = address as *mut ChunkHeader;
-        unsafe {
-            (*head).size = 0;
-            (*head).next = core::ptr::null_mut();
-        }
+        let p_head = address as *mut ChunkHeader;
+        let p_next = (address + SIZE_OF_HEADER) as *mut ChunkHeader;
 
-        if size >= core::mem::size_of::<ChunkHeader>() * 2 {
-            let next = (address + core::mem::size_of::<ChunkHeader>()) as *mut ChunkHeader;
-            unsafe {
-                (*next).size = size - 2 * core::mem::size_of::<ChunkHeader>();
-                (*next).next = core::ptr::null_mut();
-                (*head).next = next;
-            }
-        }
+        let head = unsafe { &mut *p_head };
+        head.size = 0;
+        head.next = p_next;
 
-        let out = Self {
-            head
-        };
-        out.dump();
-        out
+        let next = unsafe { &mut *p_next };
+        next.size = size - SIZE_OF_HEADER * 2;
+        next.next = core::ptr::null_mut();
+
+        Self {
+            head: p_head,
+            begin: address,
+            size,
+        }
     }
 
     fn dump(&self) {
-        let mut uart = Uart;
         let mut current = self.head;
-
-        write!(uart, "dump: \n").unwrap();
-
-        let mut cnt = 0;
 
         while !current.is_null() {
             let chunk = unsafe { &*current };
-            write!(uart, "{:p} size: {}, next={:p}\n", current, chunk.size, chunk.next).unwrap();
+            writeln!(
+                Uart,
+                "chunk: {:p}, size={:x}, next={:p}",
+                current, chunk.size, chunk.next
+            )
+            .unwrap();
+
             current = chunk.next;
-
-            cnt += 1;
-            if cnt >= 20 {
-                write!(uart, "...\n").unwrap();
-                break;
-            }
         }
-
-        write!(uart, "\n").unwrap();
     }
 
-    fn find_chunk(&mut self, size: usize, align: usize) -> Option<(*mut ChunkHeader, *mut ChunkHeader)> {
+    fn find_chunk(
+        &mut self,
+        size: usize,
+        align: usize,
+    ) -> Option<(*mut ChunkHeader, *mut ChunkHeader)> {
         let mut prev = self.head;
         let mut current = unsafe { (*prev).next };
 
@@ -101,15 +93,14 @@ impl Allocator {
     }
 
     pub fn allocate(&mut self, layout: Layout) -> Option<usize> {
-        writeln!(Uart, "allocate size = {}, alignment={}", layout.size(), layout.align()).unwrap();
-
-        // TODO check align is power of 2
         let size = layout.size();
         let align = layout.align();
         let size = (size + 7) & !7;
         let align = (align + 7) & !7;
 
         let (prev, current) = self.find_chunk(size, align)?;
+
+        // writeln!(Uart, "found chunk: prev={:p}, current={:p}", prev, current).unwrap();
 
         let chunk = unsafe { *current };
         let start = current as usize + core::mem::size_of::<ChunkHeader>();
@@ -122,12 +113,9 @@ impl Allocator {
 
                 let p_new_chunk_header = end as *mut ChunkHeader;
                 (*prev).next = p_new_chunk_header;
-                (*p_new_chunk_header).size = chunk.size - (end - start) - core::mem::size_of::<ChunkHeader>();
+                (*p_new_chunk_header).size =
+                    chunk.size - (end - start) - core::mem::size_of::<ChunkHeader>();
                 (*p_new_chunk_header).next = chunk.next;
-
-                writeln!(Uart, "set next of {:p} to {:p}", prev, (*prev).next).unwrap();
-
-                // writeln!(Uart, "set next of {:p} to {:p}", p_new_chunk_header, new_chunk_header.next).unwrap();
             }
         } else {
             unsafe {
@@ -142,19 +130,16 @@ impl Allocator {
                 next: current, // reuse as 'begin of this'
             };
 
-            let p_new_chunk_header = (aligned_start - core::mem::size_of::<ChunkHeader>()) as *mut ChunkHeader;
-            unsafe { *p_new_chunk_header = new_chunk_header; }
+            let p_new_chunk_header =
+                (aligned_start - core::mem::size_of::<ChunkHeader>()) as *mut ChunkHeader;
+            unsafe {
+                *p_new_chunk_header = new_chunk_header;
+            }
         }
-
-        writeln!(Uart, "allocated {:x}", aligned_start).unwrap();
-        self.dump();
-
         Some(aligned_start)
     }
 
     pub fn deallocate(&mut self, address: usize) {
-        writeln!(Uart, "deallocate {:x}", address).unwrap();
-
         if address == 0 {
             return;
         }
@@ -167,27 +152,35 @@ impl Allocator {
         let mut current = unsafe { (*prev).next };
 
         while !prev.is_null() {
-            // if new_p_chunk is greater than prev, then insert here.
-
-            // prev < new_p_chunk < current
-            if prev < new_p_chunk && new_p_chunk < current {
-
+            if prev < new_p_chunk && (new_p_chunk < current || current.is_null()) {
                 // ensure no overlap
-                let end_of_prev = prev as usize + core::mem::size_of::<ChunkHeader>() + unsafe {(*prev).size};
-                let end_of_new_p_chunk = new_p_chunk as usize + core::mem::size_of::<ChunkHeader>() + chunk.size;
+                let end_of_prev =
+                    prev as usize + core::mem::size_of::<ChunkHeader>() + unsafe { (*prev).size };
+                let end_of_new_p_chunk =
+                    new_p_chunk as usize + core::mem::size_of::<ChunkHeader>() + chunk.size;
 
-                if end_of_prev > new_p_chunk as usize || end_of_new_p_chunk > current as usize {
+                if end_of_prev > new_p_chunk as usize
+                    || (!current.is_null() && end_of_new_p_chunk > current as usize)
+                {
                     panic!("memory corruption");
                 }
 
-                let connected_with_prev = ((prev as usize) + core::mem::size_of::<ChunkHeader>() + unsafe {(*prev).size} == new_p_chunk as usize) && (prev != self.head);
-                let connected_with_current = new_p_chunk as usize + core::mem::size_of::<ChunkHeader>() + chunk.size == current as usize;
-            
+                let connected_with_prev = ((prev as usize)
+                    + core::mem::size_of::<ChunkHeader>()
+                    + unsafe { (*prev).size }
+                    == new_p_chunk as usize)
+                    && (prev != self.head);
+                let connected_with_current =
+                    (new_p_chunk as usize + core::mem::size_of::<ChunkHeader>() + chunk.size
+                        == current as usize)
+                        && !current.is_null();
+
                 assert!(!(current.is_null() && connected_with_current));
 
                 if connected_with_prev && connected_with_current {
                     unsafe {
-                        (*prev).size += 2 * core::mem::size_of::<ChunkHeader>() + chunk.size + (*current).size;
+                        (*prev).size +=
+                            2 * core::mem::size_of::<ChunkHeader>() + chunk.size + (*current).size;
                         (*prev).next = (*current).next;
                     }
                 } else if connected_with_prev {
@@ -206,10 +199,8 @@ impl Allocator {
                         (*p_chunk).next = current;
                         (*prev).next = p_chunk;
                     }
-
                 }
 
-                self.dump();
                 return;
             }
 
@@ -219,6 +210,52 @@ impl Allocator {
 
         panic!("memory corruption");
     }
+
+    fn get_tail(&self) -> *mut ChunkHeader {
+        let mut prev = self.head;
+        let mut current = unsafe { (*prev).next };
+
+        while !current.is_null() {
+            prev = current;
+            current = unsafe { (*current).next };
+        }
+
+        prev
+    }
+
+    pub unsafe fn extend(&mut self, new_end: usize) {
+        let p_tail = self.get_tail();
+        let a_tail = p_tail as usize;
+        let tail = &mut *p_tail;
+
+        if a_tail + tail.size + SIZE_OF_HEADER == self.begin + self.size {
+            // contiguous, just extend
+            tail.size += new_end - (self.begin + self.size);
+        } else {
+            // not contiguous, add new chunk
+            let p_new_tail = (self.begin + self.size) as *mut ChunkHeader;
+            let new_tail = &mut *p_new_tail;
+            new_tail.size = new_end - (self.begin + self.size) - SIZE_OF_HEADER;
+            new_tail.next = core::ptr::null_mut();
+
+            tail.next = p_new_tail;
+        }
+
+        self.size = new_end - self.begin;
+    }
+
+    pub fn get_used_address_upperbound(&self) -> usize {
+        // if tail + tail.size + size_of_header == self.begin + self.size , return p_tail + size_of_header
+        // else return begin + size
+
+        let p_tail = self.get_tail();
+        let a_tail = p_tail as usize;
+        let tail = unsafe { &*p_tail };
+
+        if a_tail + tail.size + SIZE_OF_HEADER == self.begin + self.size {
+            a_tail + SIZE_OF_HEADER
+        } else {
+            self.begin + self.size
+        }
+    }
 }
-
-

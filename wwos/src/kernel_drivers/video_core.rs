@@ -1,4 +1,4 @@
-use crate::drivers::mailbox::*;
+use crate::kernel_drivers::mailbox::*;
 
 enum VideoCoreMailboxTagIdentifier {
     SetPower = 0x28001,

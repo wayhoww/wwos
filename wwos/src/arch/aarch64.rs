@@ -1,10 +1,9 @@
 use core::arch::asm;
 
+use alloc::boxed::Box;
 use log::info;
 
-use crate::{memory::{set_translation_table, MemoryPage}, Uart, MEMORY_PAGES};
-
-use core::fmt::Write;
+use crate::SHARED_REGION_BEGIN;
 
 unsafe fn read_mpidr_el1() -> u64 {
     let mut mpidr_el1: u64;
@@ -61,7 +60,8 @@ unsafe fn switch_to_el1() {
     let _tmp: usize;
     let _tmp2: usize;
 
-    asm!("
+    asm!(
+        "
         // Configure HCR_EL2
         // ------------------
         ORR      w0, wzr, #(1 << 3)             // FMO=1
@@ -161,7 +161,7 @@ impl ExceptionType {
         } else if ec_bits == 0b010001 || ec_bits == 0b010101 {
             ExceptionType::SystemCall
         } else if ec_bits == 0b100100 || ec_bits == 0b100101 {
-            ExceptionType::DataAbort 
+            ExceptionType::DataAbort
         } else {
             ExceptionType::Other
         }
@@ -171,15 +171,22 @@ impl ExceptionType {
 fn handle_system_call(syscall_id: u64, arg: u64) {
     info!("System call: id={}, arg={}, ", syscall_id, arg);
     // print current stack pointer
-    let sp: usize;
-    unsafe {
-        asm!("mov {sp}, sp", sp = out(reg) sp);
-    }
-    info!("Current stack pointer: {:#x}", sp);
+    // let sp: usize;
+    // unsafe {
+    //     asm!("mov {sp}, sp", sp = out(reg) sp);
+    // }
+    // info!("Current stack pointer: {:#x}", sp);
 }
 
+pub trait DataAbortHandler {
+    fn handle_data_abort(&mut self, address: usize) -> bool;
+}
+
+pub static mut DATA_ABORT_HANDLER: Option<Box<dyn DataAbortHandler>> = None;
+pub static mut USER_DATA_ABORT_HANDLER: Option<Box<dyn DataAbortHandler>> = None;
+
 #[no_mangle]
-fn handle_exception(arg0: u64, arg1: u64) {
+pub unsafe extern "C" fn handle_exception(arg0: u64, arg1: u64) {
     let ec_bits = unsafe { get_ec_bits() };
     let exception_type = ExceptionType::from_ec_bits(ec_bits);
 
@@ -192,7 +199,36 @@ fn handle_exception(arg0: u64, arg1: u64) {
         }
         ExceptionType::SystemCall => handle_system_call(arg0, arg1),
         ExceptionType::DataAbort => {
-            info!("Data abort");
+            // read spsr_el1
+            let spsr_el1: usize;
+            unsafe {
+                asm!("mrs {x}, spsr_el1", x = out(reg) spsr_el1);
+            }
+            
+            let some_handler = if spsr_el1 & 0b1111 == 0 {
+                info!("Data abort in user mode");
+                unsafe { USER_DATA_ABORT_HANDLER.as_mut() }
+            } else {
+                unsafe { DATA_ABORT_HANDLER.as_mut() }
+            };
+            
+
+            let far_el1 = unsafe { get_far_el1() };
+            if let Some(handler) = some_handler {
+                if spsr_el1 & 0b1111 == 0 {
+                    info!("Data abort in user mode: handler exist");
+                }
+                if handler.handle_data_abort(far_el1 as usize) {
+                    if spsr_el1 & 0b1111 == 0 {
+                        info!("Data abort in user mode: succ");
+                    }
+                    return;
+                } else {
+                    panic!("Unable to handle data abort at {:#x}", far_el1);
+                }
+            } else {
+                panic!("Data abort at {:#x}. No handler provided.", far_el1);
+            }
         }
         ExceptionType::Other => {
             info!("Other exception");
@@ -208,30 +244,73 @@ pub fn get_current_el() -> u64 {
     current_el >> 2
 }
 
-pub unsafe fn start_userspace_execution(addr: usize) -> ! {
-    let mut _tmp: usize;
 
-    asm!(
-        r#"
-            ldr {tmp}, =el0_stack_top;
-            msr sp_el0, {tmp};
-            msr elr_el1, {addr};
-            eret;    
-        "#,
-        addr = in(reg) addr,
-        tmp = out(reg) _tmp,
-    );
-
-    panic!("Unreachable");
+pub fn start_userspace_execution(addr: usize, sp: usize, ttbr0_el1: usize) -> ! {
+    let target_address = SHARED_REGION_BEGIN; // TODO: improve calculation
+    unsafe {
+        asm!(
+            "mov x0, {addr}",
+            "mov x1, {sp}",
+            "mov x2, {ttbr0_el1}",
+            "br      {function_address}",
+            addr = in(reg) addr,
+            sp = in(reg) sp,
+            ttbr0_el1 = in(reg) ttbr0_el1,
+            function_address = in(reg) target_address,
+            options(noreturn),
+        );
+    }
 }
+
+
+
 
 // https://developer.arm.com/documentation/102374/0102/Procedure-Call-Standard
 // X19-X23, X24-X28 are callee-saved registers
 
 core::arch::global_asm!(
     r#"
+
+.section ".text.wwos.shared"
+.global __wwos_shared_begin_mark
+.global __wwos_start_userspace_execution
+__wwos_start_userspace_execution:
+    // arg0(x0): address
+    // arg1(x1): sp
+    // arg2(x2): address to translation table
+
+    msr ttbr0_el1, x2
+    TLBI     VMALLE1
+    DSB      SY
+    ISB
+
+    msr sp_el0, x1
+    msr elr_el1, x0
+    
+    adr x0, aarch64_exception_vector_table;
+    msr vbar_el1, x0;
+    
+    mov x0, #0;
+    msr spsr_el1, x0;
+
+    adr x0, __wwos_kernel_shared_end_mark
+    mov sp, x0
+
+    eret
+
+.balign 8
+.global __wwos_kernel_memory_mapping_address;
+__wwos_kernel_memory_mapping_address:
+    .quad 0x0;
+.global __wwos_user_memory_mapping_address;
+__wwos_user_memory_mapping_address:
+    .quad 0x0;
+.global __wwos_exception_handler_physical_address;
+__wwos_exception_handler_physical_address:
+    .quad 0x0;
+
 protect_and_handle_exception:
-    sub     sp, sp, #168
+    sub     sp, sp, #192
     stp     x0, x1, [sp, #0];
     stp     x2, x3, [sp, #16];
     stp     x4, x5, [sp, #32];
@@ -248,9 +327,38 @@ protect_and_handle_exception:
     mrs     x1, elr_el1;
     stp     x0, x1, [sp, #176];
     
+    and     x0, x0, #0b1111;
+    cmp     x0, #0;
+    b.ne    1f;
+
+    adr     x0, __wwos_kernel_memory_mapping_address;
+    ldr     x0, [x0];
+    msr     ttbr0_el1, x0;
+    TLBI    VMALLE1
+    DSB     SY
+    ISB
+
+    // (optionally) set sp
+    adr     x2, __wwos_exception_handler_physical_address;
+    ldr     x2, [x2];
+    mov     x0, x10;
+    mov     x1, x11;
+    blr     x2;
+
+    // TODO: put it on stack?
+    adr     x0, __wwos_user_memory_mapping_address;
+    ldr     x0, [x0];
+    msr     ttbr0_el1, x0;
+    TLBI    VMALLE1
+    DSB     SY
+    ISB
+
+    b       2f;
+1:
     mov     x0, x10;
     mov     x1, x11;
     bl      handle_exception;
+2:
 
     ldp     x0, x1, [sp, #176];
     msr     spsr_el1, x0;
@@ -267,7 +375,7 @@ protect_and_handle_exception:
     ldp     x16, x17, [sp, #144];
     ldp     x18, x29, [sp, #160];
     ldr     x30, [sp, #168];
-    add     sp, sp, #168;
+    add     sp, sp, #192;
 
     eret;
 
@@ -326,36 +434,31 @@ lower_el_aarch32_fiq:
 .balign 0x80
 lower_el_aarch32_serror:
     b       protect_and_handle_exception;
-
-
-
-    // TT block entries templates   (L1 and L2, NOT L3)
-    // Assuming table contents:
-    // 0 = b01000100 = Normal, Inner/Outer Non-Cacheable
-    // 1 = b11111111 = Normal, Inner/Outer WB/WA/RA
-    // 2 = b00000000 = Device-nGnRnE
-    .equ TT_S1_FAULT,           0x0
-    .equ TT_S1_NORMAL_NO_CACHE, 0x00000000000000401    // Index = 0, AF=1
-    .equ TT_S1_NORMAL_WBWA,     0x00000000000000405    // Index = 1, AF=1
-    .equ TT_S1_DEVICE_nGnRnE,   0x00600000000000409    // Index = 2, AF=1, PXN=1, UXN=1
-
-
-
-// ------------------------------------------------------------
-// Translation tables
-// ------------------------------------------------------------
-
-    .section  TT,"ax"
-    .align 12
-
-    .global tt_l1_base
-tt_l1_base:
-    .fill 4096 , 1 , 0
-
-
-    .align 12
-    .global tt_l2_base
-tt_l2_base:
-    .fill 4096 , 1 , 0
 "#
 );
+
+// TT block entries templates   (L1 and L2, NOT L3)
+// Assuming table contents:
+// 0 = b01000100 = Normal, Inner/Outer Non-Cacheable
+// 1 = b11111111 = Normal, Inner/Outer WB/WA/RA
+// 2 = b00000000 = Device-nGnRnE
+// .equ TT_S1_FAULT,           0x0
+// .equ TT_S1_NORMAL_NO_CACHE, 0x00000000000000401    // Index = 0, AF=1
+// .equ TT_S1_NORMAL_WBWA,     0x00000000000000405    // Index = 1, AF=1
+// .equ TT_S1_DEVICE_nGnRnE,   0x00600000000000409    // Index = 2, AF=1, PXN=1, UXN=1
+
+// // ------------------------------------------------------------
+// // Translation tables
+// // ------------------------------------------------------------
+
+//     .section  TT,"ax"
+//     .align 12
+
+//     .global tt_l1_base
+// tt_l1_base:
+//     .fill 4096 , 1 , 0
+
+//     .align 12
+//     .global tt_l2_base
+// tt_l2_base:
+//     .fill 4096 , 1 , 0

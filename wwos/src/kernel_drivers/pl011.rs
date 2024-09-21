@@ -17,10 +17,6 @@ impl PL011Driver {
 }
 
 impl Driver for PL011Driver {
-    fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
-        None
-    }
-
     fn as_serial32(&self) -> Option<&dyn Serial32Driver> {
         Some(self)
     }
