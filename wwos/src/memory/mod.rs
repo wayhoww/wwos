@@ -74,7 +74,6 @@ impl TranslationTableNodeAarch64 {
     fn new(level: usize) -> Self {
         let table =
             unsafe { alloc(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap()) as *mut u64 };
-
         for i in 0..512 {
             unsafe { table.offset(i).write(0u64) };
         }
@@ -88,6 +87,8 @@ impl TranslationTableNodeAarch64 {
 
     fn add_node(&mut self, page: &MemoryBlock) {
         let index = (page.virtual_address >> (39 - self.level * 9)) & ((1 << 9) - 1);
+
+        assert!(index < 512);
 
         if self.level < 3 {
             if self.next_level_tables[index].is_none() {
@@ -129,12 +130,10 @@ impl TranslationTableNodeAarch64 {
 }
 
 impl TranslationTableAarch64 {
-    fn get_table_address(&self) -> usize {
+    pub fn get_table_address(&self) -> usize {
         self.root.get_table_address()
     }
-}
 
-impl TranslationTableAarch64 {
     pub fn from_memory_pages(pages: &[MemoryBlock]) -> Self {
         let mut root = Box::new(TranslationTableNodeAarch64::new(1));
 
@@ -144,22 +143,17 @@ impl TranslationTableAarch64 {
 
         Self { root }
     }
-}
 
-impl TranslationTableAarch64 {
-    pub fn get_address(&self) -> usize {
-        self.root.get_table_address()
-    }
-}
-
-impl TranslationTable for TranslationTableAarch64 {
-    fn add_block(&mut self, block: &MemoryBlock) {
+    pub fn add_block(&mut self, block: &MemoryBlock) {
         self.root.add_node(block);
     }
 
-    // TODO(ww): some are for init. extract them
-    fn activate(&self) {
+    pub fn activate(&self) {
         let addr = self.get_table_address();
+        unsafe { Self::activate_address(addr) };
+    }
+
+    pub unsafe fn activate_address(addr: usize) {
         let mut _tmp: usize;
 
         unsafe {

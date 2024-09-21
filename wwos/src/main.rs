@@ -7,12 +7,14 @@ mod boot;
 mod kernel_drivers;
 mod library;
 mod memory;
+mod process;
 
 extern crate alloc;
 
 use alloc::{boxed::Box, rc::Rc};
 use alloc::vec::Vec;
-use arch::{handle_exception, initialize_arch, start_userspace_execution, system_call, DataAbortHandler, DATA_ABORT_HANDLER, USER_DATA_ABORT_HANDLER};
+use arch::{handle_exception, initialize_arch, start_userspace_execution, system_call, DataAbortHandler, KERNEL_DATA_ABORT_HANDLER, PROCESS};
+use process::Process;
 use core::arch::asm;
 use core::cell::RefCell;
 use core::fmt::Write;
@@ -284,7 +286,7 @@ impl PhysicalMemoryPageAllocator {
 }
 
 struct KernelPageAllocator {
-    table: Box<dyn TranslationTable>,
+    table: TranslationTableAarch64,
     physical_allocator: Rc<RefCell<PhysicalMemoryPageAllocator>>,
 }
 
@@ -300,6 +302,9 @@ impl DataAbortHandler for KernelPageAllocator {
                 mtype: memory::MemoryType::Normal,
             },
         };
+
+        // kernel blocks needs to be added to user translation table
+        unsafe { KERNEL_MEMORY_BLOCKS.push(block.clone()) };
 
         self.table.add_block(&block);
         self.table.activate();
@@ -427,66 +432,10 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
         unsafe { KERNEL_MEMORY_BLOCKS.push(block) };
     }
 
-    // TODO: assert pages for shared region is not occupied
-
-    extern "C" {
-        static __wwos_kernel_shared_begin_mark: u64;
-        static __wwos_kernel_shared_end_mark: u64;
-    }
-
-    // TODO: assert alignment
-    let shared_begin = unsafe { addr_of!(__wwos_kernel_shared_begin_mark) as *const u8 as usize };
-    let shared_end = unsafe { addr_of!(__wwos_kernel_shared_end_mark) as *const u8 as usize };
-    let shared_page_count = (shared_end - shared_begin + PAGE_SIZE - 1) / PAGE_SIZE;
-
-
-    // add all of them to the translation table
-    for i in 0..shared_page_count {
-        let address = shared_begin + i * PAGE_SIZE;
-        let block = MemoryBlock {
-            virtual_address: SHARED_REGION_BEGIN + i * PAGE_SIZE,
-            physical_address: address,
-            attr: MemoryBlockAttributes {
-                permission: memory::MemoryPermission::KernelRWX,
-                mtype: memory::MemoryType::Normal,
-            },
-        };
-        unsafe { KERNEL_MEMORY_BLOCKS.push(block) };
-    }
-    
-
     let kernel_memory_mapping = 
         memory::TranslationTableAarch64::from_memory_pages(unsafe { KERNEL_MEMORY_BLOCKS.as_slice() });
-        kernel_memory_mapping.activate();
-
-    extern "C" {
-        static mut __wwos_kernel_memory_mapping_address: u64;
-        static mut __wwos_user_memory_mapping_address: u64;
-        static mut __wwos_exception_handler_physical_address: u64;
-    }
-
-    // 1. print addr of __wwos_kernel_memory_mapping_address
-    // 2. print addr of __wwos_kernel_memory_mapping_address - __wwos_shared_begin_mark
-    // 3. print addr of __wwos_kernel_memory_mapping_address - __wwos_shared_begin_mark + SHARED_REGION_BEGIN
-
     
-    let addr_of_wwo_kernel_memory_mapping_address = unsafe { addr_of!(__wwos_kernel_memory_mapping_address) as *const u8 as usize };
-    let addr_of_shared_begin_mark = unsafe { addr_of!(__wwos_kernel_shared_begin_mark) as *const u8 as usize };
-
-    // info!("addr_of_wwo_kernel_memory_mapping_address: {:x}", addr_of_wwo_kernel_memory_mapping_address);
-    // info!("addr_of_wwo_kernel_memory_mapping_address - addr_of_shared_begin_mark: {:x}", addr_of_wwo_kernel_memory_mapping_address - addr_of_shared_begin_mark);
-    // info!("addr_of_wwo_kernel_memory_mapping_address - addr_of_shared_begin_mark + SHARED_REGION_BEGIN: {:x}", addr_of_wwo_kernel_memory_mapping_address - addr_of_shared_begin_mark + SHARED_REGION_BEGIN);
-
-    unsafe {
-        __wwos_kernel_memory_mapping_address = kernel_memory_mapping.get_address() as u64;
-        __wwos_exception_handler_physical_address = handle_exception as u64;
-    }
-
-    let new_upperbound = unsafe { KERNEL_MEMORY_ALLOCATOR.get_used_address_upperbound() };
-
-    if new_upperbound > aligned_kernel_kernel_memory_end {
-        panic!("Internal error");
-    }
+    info!("right before activate kernel_memory_mapping");
 
     let physical_allocator = Rc::new(RefCell::new(PhysicalMemoryPageAllocator::new(
         memory.get_address(),
@@ -498,83 +447,36 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
         physical_allocator.borrow_mut().alloc_specific_page(block.physical_address);
     }
 
+    let table_address = kernel_memory_mapping.get_table_address();
+
     let page_allocator = Box::new(KernelPageAllocator {
-        table: Box::new(kernel_memory_mapping),
+        table: kernel_memory_mapping,
         physical_allocator: physical_allocator.clone(),
     }) as Box<dyn DataAbortHandler>;
 
-    unsafe { DATA_ABORT_HANDLER = Some(page_allocator) };
+    unsafe { KERNEL_DATA_ABORT_HANDLER = Some(page_allocator) };
+
+    info!("right after set KERNEL_DATA_ABORT_HANDLER");
     
     
     info!("HELLO");
 
     system_call(1, 1);
 
+    info!("END OF KERNEL INITIALIZATION");
 
-    let blob = wwos_blob::get_wwos_blob();
-    info!("blob: {:?}", blob);
+    let process = Process::from_binary_slice(0, wwos_blob::get_wwos_blob(), physical_allocator);
+
+    info!("right after from_binary_slice");
 
 
-    let mut user_blocks: Vec<MemoryBlock> = Vec::new();
+    unsafe { PROCESS = Some(process) };
 
-    // copy blob to whatever page-aligned address
-    let blob_size = blob.len();
-    let blob_page_count = (blob_size + PAGE_SIZE - 1) / PAGE_SIZE;
+    unsafe { PROCESS.as_mut().unwrap().jump_to_userspace() };
 
-    for i in 0..blob_page_count {
-        let page_address = physical_allocator.borrow_mut().alloc().unwrap();
-        let virtual_begin = PROCESS_BINARY_BEGIN + i * PAGE_SIZE;
-        let blob_begin = i * PAGE_SIZE;
-        let copy_size = core::cmp::min(PAGE_SIZE, blob_size - blob_begin);
-        // print source & destination address
-        info!("blob_begin: {:p}, page_address: {:x}, copy_size: {:x}", unsafe { blob.as_ptr().add(blob_begin) }, page_address, copy_size);
-        unsafe {
-            core::ptr::copy(
-                blob.as_ptr().add(blob_begin),
-                page_address as *mut u8,
-                copy_size,
-            );
-        }
-        user_blocks.push(MemoryBlock {
-            virtual_address: virtual_begin,
-            physical_address: page_address,
-            attr: MemoryBlockAttributes {
-                permission: memory::MemoryPermission::KernelRwUserRWX,
-                mtype: memory::MemoryType::Normal,
-            },
-        });
+    loop {
+        
     }
-
-    // add shared region translation table
-    for i in 0..shared_page_count {
-        let address = shared_begin + i * PAGE_SIZE;
-        let block = MemoryBlock {
-            virtual_address: SHARED_REGION_BEGIN + i * PAGE_SIZE,
-            physical_address: address,
-            attr: MemoryBlockAttributes {
-                permission: memory::MemoryPermission::KernelRWX,
-                mtype: memory::MemoryType::Normal,
-            },
-        };
-        user_blocks.push(block);
-    }
-
-    let user_memory_mapping = memory::TranslationTableAarch64::from_memory_pages(&user_blocks);
-
-    let memory_mapping_address = user_memory_mapping.get_address();
-
-    unsafe {
-        __wwos_user_memory_mapping_address = memory_mapping_address as u64;
-    }
-    
-    let user_data_abort_handler = Box::new(UserProcessDataAbortHandler {
-        physical_allocator: physical_allocator.clone(),
-        translation_table: Box::new(user_memory_mapping),
-    }) as Box<dyn DataAbortHandler>;
-
-    unsafe { USER_DATA_ABORT_HANDLER = Some(user_data_abort_handler) };
-
-    start_userspace_execution(PROCESS_BINARY_BEGIN, PROCESS_BINARY_BEGIN + blob_size + 2 * 4096 * 4096, memory_mapping_address);
 }
 
 #[cfg(not(test))]

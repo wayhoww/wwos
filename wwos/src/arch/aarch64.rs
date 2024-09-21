@@ -3,7 +3,7 @@ use core::arch::asm;
 use alloc::boxed::Box;
 use log::info;
 
-use crate::SHARED_REGION_BEGIN;
+use crate::{process::{CoreSiteState, Process}, SHARED_REGION_BEGIN};
 
 unsafe fn read_mpidr_el1() -> u64 {
     let mut mpidr_el1: u64;
@@ -182,58 +182,98 @@ pub trait DataAbortHandler {
     fn handle_data_abort(&mut self, address: usize) -> bool;
 }
 
-pub static mut DATA_ABORT_HANDLER: Option<Box<dyn DataAbortHandler>> = None;
-pub static mut USER_DATA_ABORT_HANDLER: Option<Box<dyn DataAbortHandler>> = None;
+pub static mut KERNEL_DATA_ABORT_HANDLER: Option<Box<dyn DataAbortHandler>> = None;
+pub static mut PROCESS: Option<Process> = None;
 
 #[no_mangle]
-pub unsafe extern "C" fn handle_exception(arg0: u64, arg1: u64) {
+pub unsafe extern "C" fn handle_exception(arg0: u64, arg1: u64, regs: u64) {
     let ec_bits = unsafe { get_ec_bits() };
     let exception_type = ExceptionType::from_ec_bits(ec_bits);
+    let spsr_el1 = get_spsr_el1();
+    let far_el1 = unsafe { get_far_el1() };
 
-    match exception_type {
-        ExceptionType::Unknown => {
-            info!("Unknown exception");
+    let from_userspace = spsr_el1 & 0b1111 == 0;
+
+    if from_userspace {
+        let reg_slice = unsafe { core::slice::from_raw_parts(regs as *const u64, 31) };
+        let mut state = CoreSiteState {
+            registers: [0; 31],
+            spsr: get_spsr_el1() as u64,
+            pc: get_elr_el1(),
+            sp: get_sp_el0(),
+        };
+        for i in 0..31 {
+            state.registers[i] = reg_slice[i];
         }
-        ExceptionType::Trapped => {
-            info!("Trapped exception");
-        }
-        ExceptionType::SystemCall => handle_system_call(arg0, arg1),
-        ExceptionType::DataAbort => {
-            // read spsr_el1
-            let spsr_el1: usize;
-            unsafe {
-                asm!("mrs {x}, spsr_el1", x = out(reg) spsr_el1);
+
+        PROCESS.as_mut().unwrap().site_state = state;
+
+        match exception_type {
+            ExceptionType::SystemCall => {
+                let syscall_id = arg0;
+                let arg = arg1;
+                handle_system_call(syscall_id, arg);
+                PROCESS.as_ref().unwrap().jump_to_userspace();
+            },
+            ExceptionType::DataAbort => {
+                PROCESS.as_mut().unwrap().on_data_abort(far_el1 as usize);
+                PROCESS.as_ref().unwrap().jump_to_userspace();
+            },
+            _ => {
+                panic!("Unhandled exception from userspace");
             }
-            
-            let some_handler = if spsr_el1 & 0b1111 == 0 {
-                info!("Data abort in user mode");
-                unsafe { USER_DATA_ABORT_HANDLER.as_mut() }
-            } else {
-                unsafe { DATA_ABORT_HANDLER.as_mut() }
-            };
-            
+        }
+    } else {
 
-            let far_el1 = unsafe { get_far_el1() };
-            if let Some(handler) = some_handler {
-                if spsr_el1 & 0b1111 == 0 {
-                    info!("Data abort in user mode: handler exist");
-                }
-                if handler.handle_data_abort(far_el1 as usize) {
-                    if spsr_el1 & 0b1111 == 0 {
-                        info!("Data abort in user mode: succ");
+        match exception_type {
+            ExceptionType::Unknown => {
+                info!("Unknown exception");
+            }
+            ExceptionType::Trapped => {
+                info!("Trapped exception");
+            }
+            ExceptionType::SystemCall => handle_system_call(arg0, arg1),
+            ExceptionType::DataAbort => {            
+    
+                if let Some(handler) = unsafe { KERNEL_DATA_ABORT_HANDLER.as_mut() } {
+                    if handler.handle_data_abort(far_el1 as usize) {
+                        return;
+                    } else {
+                        panic!("Unable to handle data abort at {:#x}", far_el1);
                     }
-                    return;
                 } else {
-                    panic!("Unable to handle data abort at {:#x}", far_el1);
+                    panic!("Data abort at {:#x}. No handler provided.", far_el1);
                 }
-            } else {
-                panic!("Data abort at {:#x}. No handler provided.", far_el1);
             }
-        }
-        ExceptionType::Other => {
-            info!("Other exception");
+            ExceptionType::Other => {
+                info!("Other exception");
+            }
         }
     }
+}
+
+fn get_spsr_el1() -> usize {
+    let spsr_el1: usize;
+    unsafe {
+        asm!("mrs {x}, spsr_el1", x = out(reg) spsr_el1);
+    }
+    spsr_el1
+}
+
+fn get_elr_el1() -> usize {
+    let elr_el1: usize;
+    unsafe {
+        asm!("mrs {x}, elr_el1", x = out(reg) elr_el1);
+    }
+    elr_el1
+}
+
+fn get_sp_el0() -> usize {
+    let sp_el0: usize;
+    unsafe {
+        asm!("mrs {x}, sp_el0", x = out(reg) sp_el0);
+    }
+    sp_el0
 }
 
 pub fn get_current_el() -> u64 {
@@ -270,112 +310,55 @@ pub fn start_userspace_execution(addr: usize, sp: usize, ttbr0_el1: usize) -> ! 
 
 core::arch::global_asm!(
     r#"
-
-.section ".text.wwos.shared"
-.global __wwos_shared_begin_mark
-.global __wwos_start_userspace_execution
-__wwos_start_userspace_execution:
-    // arg0(x0): address
-    // arg1(x1): sp
-    // arg2(x2): address to translation table
-
-    msr ttbr0_el1, x2
-    TLBI     VMALLE1
-    DSB      SY
-    ISB
-
-    msr sp_el0, x1
-    msr elr_el1, x0
-    
-    adr x0, aarch64_exception_vector_table;
-    msr vbar_el1, x0;
-    
-    mov x0, #0;
-    msr spsr_el1, x0;
-
-    adr x0, __wwos_kernel_shared_end_mark
-    mov sp, x0
-
-    eret
-
-.balign 8
-.global __wwos_kernel_memory_mapping_address;
-__wwos_kernel_memory_mapping_address:
-    .quad 0x0;
-.global __wwos_user_memory_mapping_address;
-__wwos_user_memory_mapping_address:
-    .quad 0x0;
-.global __wwos_exception_handler_physical_address;
-__wwos_exception_handler_physical_address:
-    .quad 0x0;
-
 protect_and_handle_exception:
-    sub     sp, sp, #192
-    stp     x0, x1, [sp, #0];
-    stp     x2, x3, [sp, #16];
-    stp     x4, x5, [sp, #32];
-    stp     x6, x7, [sp, #48];
-    stp     x8, x9, [sp, #64];
-    stp     x10, x11, [sp, #96];
-    stp     x12, x13, [sp, #112];
-    stp     x14, x15, [sp, #128];
-    stp     x16, x17, [sp, #144];
-    stp     x18, x29, [sp, #160];
-    str     x30, [sp, #168];
+    sub     sp, sp, #0x108
+    stp     x0, x1,   [sp, #0x00];
+    stp     x2, x3,   [sp, #0x10];
+    stp     x4, x5,   [sp, #0x20];
+    stp     x6, x7,   [sp, #0x30];
+    stp     x8, x9,   [sp, #0x40];
+    stp     x10, x11, [sp, #0x50];
+    stp     x12, x13, [sp, #0x60];
+    stp     x14, x15, [sp, #0x70];
+    stp     x16, x17, [sp, #0x80];
+    stp     x18, x19, [sp, #0x90];
+    stp     x20, x21, [sp, #0xA0];
+    stp     x22, x23, [sp, #0xB0];
+    stp     x24, x25, [sp, #0xC0];
+    stp     x26, x27, [sp, #0xD0];
+    stp     x28, x29, [sp, #0xE0];
+    str     x30,      [sp, #0xF0];
 
     mrs     x0, spsr_el1;
     mrs     x1, elr_el1;
-    stp     x0, x1, [sp, #176];
+    stp     x0, x1, [sp, #0xF8];
     
-    and     x0, x0, #0b1111;
-    cmp     x0, #0;
-    b.ne    1f;
-
-    adr     x0, __wwos_kernel_memory_mapping_address;
-    ldr     x0, [x0];
-    msr     ttbr0_el1, x0;
-    TLBI    VMALLE1
-    DSB     SY
-    ISB
-
-    // (optionally) set sp
-    adr     x2, __wwos_exception_handler_physical_address;
-    ldr     x2, [x2];
     mov     x0, x10;
     mov     x1, x11;
-    blr     x2;
-
-    // TODO: put it on stack?
-    adr     x0, __wwos_user_memory_mapping_address;
-    ldr     x0, [x0];
-    msr     ttbr0_el1, x0;
-    TLBI    VMALLE1
-    DSB     SY
-    ISB
-
-    b       2f;
-1:
-    mov     x0, x10;
-    mov     x1, x11;
+    mov     x2, sp;
     bl      handle_exception;
-2:
 
-    ldp     x0, x1, [sp, #176];
+    ldp     x0, x1, [sp, #0xF8];
     msr     spsr_el1, x0;
     msr     elr_el1, x1;
 
-    ldp     x0, x1, [sp, #0];
-    ldp     x2, x3, [sp, #16];
-    ldp     x4, x5, [sp, #32];
-    ldp     x6, x7, [sp, #48];
-    ldp     x8, x9, [sp, #64];
-    ldp     x10, x11, [sp, #96];
-    ldp     x12, x13, [sp, #112];
-    ldp     x14, x15, [sp, #128];
-    ldp     x16, x17, [sp, #144];
-    ldp     x18, x29, [sp, #160];
-    ldr     x30, [sp, #168];
-    add     sp, sp, #192;
+    ldp     x0, x1,   [sp, #0x00];
+    ldp     x2, x3,   [sp, #0x10];
+    ldp     x4, x5,   [sp, #0x20];
+    ldp     x6, x7,   [sp, #0x30];
+    ldp     x8, x9,   [sp, #0x40];
+    ldp     x10, x11, [sp, #0x50];
+    ldp     x12, x13, [sp, #0x60];
+    ldp     x14, x15, [sp, #0x70];
+    ldp     x16, x17, [sp, #0x80];
+    ldp     x18, x19, [sp, #0x90];
+    ldp     x20, x21, [sp, #0xA0];
+    ldp     x22, x23, [sp, #0xB0];
+    ldp     x24, x25, [sp, #0xC0];
+    ldp     x26, x27, [sp, #0xD0];
+    ldp     x28, x29, [sp, #0xE0];
+    ldr     x30,      [sp, #0xF0];
+    add     sp, sp, #0x108;
 
     eret;
 

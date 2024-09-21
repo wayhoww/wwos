@@ -56,13 +56,6 @@ impl Allocator {
 
         while !current.is_null() {
             let chunk = unsafe { &*current };
-            writeln!(
-                Uart,
-                "chunk: {:p}, size={:x}, next={:p}",
-                current, chunk.size, chunk.next
-            )
-            .unwrap();
-
             current = chunk.next;
         }
     }
@@ -100,8 +93,6 @@ impl Allocator {
 
         let (prev, current) = self.find_chunk(size, align)?;
 
-        // writeln!(Uart, "found chunk: prev={:p}, current={:p}", prev, current).unwrap();
-
         let chunk = unsafe { *current };
         let start = current as usize + core::mem::size_of::<ChunkHeader>();
         let aligned_start = (start + align - 1) & !(align - 1);
@@ -135,7 +126,9 @@ impl Allocator {
             unsafe {
                 *p_new_chunk_header = new_chunk_header;
             }
+
         }
+
         Some(aligned_start)
     }
 
@@ -143,9 +136,11 @@ impl Allocator {
         if address == 0 {
             return;
         }
+        self.dump();
 
         let p_chunk = (address - core::mem::size_of::<ChunkHeader>()) as *mut ChunkHeader;
         let chunk = unsafe { *p_chunk };
+
         let new_p_chunk = chunk.next; // reused as 'begin of this'
 
         let mut prev = self.head;
@@ -190,14 +185,15 @@ impl Allocator {
                     }
                 } else if connected_with_current {
                     unsafe {
-                        (*p_chunk).size += core::mem::size_of::<ChunkHeader>() + (*current).size;
-                        (*p_chunk).next = (*current).next;
-                        (*prev).next = p_chunk;
+                        (*new_p_chunk).size += core::mem::size_of::<ChunkHeader>() + (*current).size;
+                        (*new_p_chunk).next = (*current).next;
+                        (*prev).next = new_p_chunk;
                     }
                 } else {
                     unsafe {
-                        (*p_chunk).next = current;
-                        (*prev).next = p_chunk;
+                        (*new_p_chunk).next = current;
+                        (*new_p_chunk).size = chunk.size;
+                        (*prev).next = new_p_chunk;
                     }
                 }
 

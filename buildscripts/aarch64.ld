@@ -4,13 +4,6 @@ SECTIONS {
     __wwos_kernel_binary_begin_mark = .;
     
     .text.wwos.boot : { *(.text.wwos.boot) }            // booting
-    
-    . = ALIGN(64K);
-    __wwos_kernel_shared_begin_mark = .;
-    .text.wwos.shared : { *(.text.wwos.shared) }        // codes for switch between el0 & el1
-    . = ALIGN(64K);
-    . = . + 512K;                                       // stack for exception handler
-    __wwos_kernel_shared_end_mark = .;  
 
     .text : { *(.text), *(.text.*) }
     .data : { *(.data), *(.data.*) }
