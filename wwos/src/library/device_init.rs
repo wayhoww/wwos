@@ -1,14 +1,10 @@
-use core::fmt::Write;
-use core::ptr::write_volatile;
-
 use alloc::vec;
 use alloc::vec::Vec;
 use alloc::{boxed::Box, string::String};
 use log::{info, warn};
 
-use crate::kernel_drivers::{self, Driver, DriverFactory, Serial32Driver};
+use crate::kernel_drivers::{self, Driver, DriverFactory};
 
-use super::DeviceTreePropertyValue;
 use super::{
     device_tree::{DeviceTree, DeviceTreeNode},
     memory_mapping::MemoryMappingChain,
@@ -29,7 +25,6 @@ pub struct DriverInstance {
     pub path: Vec<String>,
     pub driver: Box<dyn Driver>,
 }
-
 
 fn initialize_hardwares_recursive(
     node: &DeviceTreeNode,

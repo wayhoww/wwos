@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::{alloc::Layout, fmt::Write, ptr::write_volatile};
+use core::alloc::Layout;
 
 #[derive(Clone, Copy, Debug)]
 struct ChunkHeader {
@@ -15,17 +15,6 @@ pub struct Allocator {
 }
 
 const SIZE_OF_HEADER: usize = core::mem::size_of::<ChunkHeader>();
-
-struct Uart;
-
-impl Write for Uart {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        for c in s.chars() {
-            unsafe { write_volatile(0x0900_0000 as *mut u32, c as u32) };
-        }
-        Ok(())
-    }
-}
 
 impl Allocator {
     pub fn new(address: usize, size: usize) -> Self {
@@ -126,7 +115,6 @@ impl Allocator {
             unsafe {
                 *p_new_chunk_header = new_chunk_header;
             }
-
         }
 
         Some(aligned_start)
@@ -185,7 +173,8 @@ impl Allocator {
                     }
                 } else if connected_with_current {
                     unsafe {
-                        (*new_p_chunk).size += core::mem::size_of::<ChunkHeader>() + (*current).size;
+                        (*new_p_chunk).size +=
+                            core::mem::size_of::<ChunkHeader>() + (*current).size;
                         (*new_p_chunk).next = (*current).next;
                         (*prev).next = new_p_chunk;
                     }

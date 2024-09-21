@@ -1,6 +1,5 @@
 use core::arch::asm;
 
-
 pub const USER_MEMORY_BEGIN: usize = 0x0000_0001_0000_0000;
 pub const USER_BINARY_BEGIN: usize = USER_MEMORY_BEGIN;
 
@@ -21,7 +20,6 @@ impl Default for CoreSiteState {
         }
     }
 }
-
 
 impl CoreSiteState {
     pub fn jump_to_userspace(&self) -> ! {

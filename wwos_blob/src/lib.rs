@@ -2,7 +2,8 @@
 
 use core::arch::global_asm;
 
-global_asm!(r#"
+global_asm!(
+    r#"
     .balign 8
     .section ".rodata.wwos.blob"
     .global __wwos_blob_start_mark
@@ -14,8 +15,8 @@ global_asm!(r#"
     .section ".rodata.wwos.blob"
     .global __wwos_blob_end_mark
     __wwos_blob_end_mark:
-"#);
-
+"#
+);
 
 pub fn get_wwos_blob() -> &'static [u8] {
     extern "C" {

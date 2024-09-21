@@ -22,13 +22,7 @@
 // #[global_allocator]
 // static GLOBAL: DummyAllocator = DummyAllocator;
 
-use core::{
-    cell::{Ref, RefCell},
-    fmt::Write,
-    ptr::{addr_of, write_volatile},
-};
-
-use wwmalloc::Allocator;
+use core::{cell::RefCell, ptr::addr_of};
 
 pub struct KernelAllocator {
     allocator: Option<RefCell<wwmalloc::Allocator>>,
@@ -36,16 +30,13 @@ pub struct KernelAllocator {
 
 unsafe impl core::marker::Sync for KernelAllocator {}
 
-const KERNEL_EARLY_STAGE_HEAP_SIZE: usize = 1024 * 1024 * 4;
-
 impl KernelAllocator {
     pub fn initialize(&mut self) {
         extern "C" {
             static __wwos_kernel_binary_end_mark: u64;
         }
 
-        let memory_begin: usize =
-            unsafe { addr_of!(__wwos_kernel_binary_end_mark) as *const u8 as usize };
+        let memory_begin: usize = addr_of!(__wwos_kernel_binary_end_mark) as *const u8 as usize;
 
         let allocator = wwmalloc::Allocator::new(memory_begin, 1024 * 1024 * 4);
         self.allocator = Some(RefCell::new(allocator));

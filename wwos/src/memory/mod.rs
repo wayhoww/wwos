@@ -4,17 +4,6 @@
 mod kalloc;
 
 pub use kalloc::KERNEL_MEMORY_ALLOCATOR;
-use log::info;
-
-use core::{alloc::Layout, arch::asm};
-
-use alloc::{
-    alloc::{alloc, dealloc},
-    boxed::Box,
-    vec::Vec,
-};
-
-use crate::set_bits;
 
 #[derive(Clone, Debug)]
 pub enum MemoryType {
@@ -25,7 +14,6 @@ pub enum MemoryType {
 #[derive(Clone, Debug)]
 pub enum MemoryPermission {
     KernelRWX,
-    KernelRXUserRX,
     KernelRwUserRWX,
 }
 

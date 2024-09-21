@@ -11,20 +11,20 @@ mod process;
 
 extern crate alloc;
 
-use alloc::{boxed::Box, rc::Rc};
 use alloc::vec::Vec;
-use arch::{handle_exception, initialize_arch, start_userspace_execution, system_call, DataAbortHandler, TranslationTable, KERNEL_DATA_ABORT_HANDLER, PAGE_SIZE, PROCESS};
-use process::Process;
-use core::arch::asm;
+use alloc::{boxed::Box, rc::Rc};
+use arch::{
+    initialize_arch, system_call, DataAbortHandler, TranslationTable, KERNEL_DATA_ABORT_HANDLER,
+    PAGE_SIZE, PROCESS,
+};
 use core::cell::RefCell;
 use core::fmt::Write;
-use core::ptr::{addr_of, read, read_volatile};
+use core::ptr::addr_of;
 use kernel_drivers::Serial32Driver;
 use library::{initialize_kernel_hardwares, DeviceTree, DriverInstance};
 use log::info;
-use memory::{
-    MemoryBlock, MemoryBlockAttributes, KERNEL_MEMORY_ALLOCATOR
-};
+use memory::{MemoryBlock, MemoryBlockAttributes, KERNEL_MEMORY_ALLOCATOR};
+use process::Process;
 
 use log::{Level, Metadata, Record};
 
@@ -169,7 +169,9 @@ impl PhysicalMemoryPageAllocator {
             i += 1;
         }
 
-        if i < self.freelist.len() && self.freelist[i].addr + self.freelist[i].size >= addr + PAGE_SIZE {
+        if i < self.freelist.len()
+            && self.freelist[i].addr + self.freelist[i].size >= addr + PAGE_SIZE
+        {
             if self.freelist[i].size == PAGE_SIZE {
                 self.freelist.remove(i);
                 true
@@ -241,7 +243,7 @@ struct KernelPageAllocator {
 impl DataAbortHandler for KernelPageAllocator {
     fn handle_data_abort(&mut self, address: usize) -> bool {
         let aligned_address = address & !(PAGE_SIZE - 1);
-        
+
         let block = MemoryBlock {
             virtual_address: aligned_address,
             physical_address: aligned_address,
@@ -264,7 +266,6 @@ impl DataAbortHandler for KernelPageAllocator {
 const PROCESS_BINARY_BEGIN: usize = 0x400000;
 const SHARED_REGION_BEGIN: usize = PAGE_SIZE;
 
-
 struct UserProcessDataAbortHandler {
     physical_allocator: Rc<RefCell<PhysicalMemoryPageAllocator>>,
     translation_table: TranslationTable,
@@ -273,19 +274,20 @@ struct UserProcessDataAbortHandler {
 impl DataAbortHandler for UserProcessDataAbortHandler {
     fn handle_data_abort(&mut self, address: usize) -> bool {
         // check if the address should be accessible to userspace
-        
-        info!("UserProcessDataAbortHandler::handle_data_abort: address: {:x?}", address);
+
+        info!(
+            "UserProcessDataAbortHandler::handle_data_abort: address: {:x?}",
+            address
+        );
 
         let aligned_address = address & !(PAGE_SIZE - 1);
         let physical_address = self.physical_allocator.borrow_mut().alloc();
-        
 
         info!("UserProcessDataAbortHandler::handle_data_abort: aligned_address: {:x?} physical_address: {:x?}", aligned_address, physical_address);
 
         if physical_address.is_none() {
             return false;
         }
-
 
         let block = MemoryBlock {
             virtual_address: aligned_address,
@@ -296,7 +298,10 @@ impl DataAbortHandler for UserProcessDataAbortHandler {
             },
         };
 
-        info!("UserProcessDataAbortHandler::handle_data_abort: block: {:#x?}", block);
+        info!(
+            "UserProcessDataAbortHandler::handle_data_abort: block: {:#x?}",
+            block
+        );
 
         self.translation_table.add_block(&block);
 
@@ -307,7 +312,6 @@ impl DataAbortHandler for UserProcessDataAbortHandler {
         true
     }
 }
-
 
 static mut KERNEL_MEMORY_BLOCKS: Vec<MemoryBlock> = Vec::new();
 
@@ -348,19 +352,20 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
     }
 
     let upperbound = unsafe { KERNEL_MEMORY_ALLOCATOR.get_used_address_upperbound() };
-    
+
     extern "C" {
         static __wwos_kernel_binary_begin_mark: u64;
     }
 
-    let kernel_eary_memory_begin =
-        unsafe { addr_of!(__wwos_kernel_binary_begin_mark) as *const u8 as usize };
+    let kernel_eary_memory_begin = addr_of!(__wwos_kernel_binary_begin_mark) as *const u8 as usize;
     let kernel_kernel_memory_end = upperbound + 8 * 1024 * 1024; // add 4MB, for safety reason
 
     let aligned_kernel_eary_memory_begin = kernel_eary_memory_begin & !(PAGE_SIZE - 1);
-    let aligned_kernel_kernel_memory_end = (kernel_kernel_memory_end + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+    let aligned_kernel_kernel_memory_end =
+        (kernel_kernel_memory_end + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
 
-    let page_count = (aligned_kernel_kernel_memory_end - aligned_kernel_eary_memory_begin) / PAGE_SIZE;
+    let page_count =
+        (aligned_kernel_kernel_memory_end - aligned_kernel_eary_memory_begin) / PAGE_SIZE;
     for i in 0..page_count {
         let address = aligned_kernel_eary_memory_begin + i * PAGE_SIZE;
         let block = MemoryBlock {
@@ -374,8 +379,9 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
         unsafe { KERNEL_MEMORY_BLOCKS.push(block) };
     }
 
-    let kernel_memory_mapping = TranslationTable::from_memory_pages(unsafe { KERNEL_MEMORY_BLOCKS.as_slice() });
-    
+    let kernel_memory_mapping =
+        TranslationTable::from_memory_pages(unsafe { KERNEL_MEMORY_BLOCKS.as_slice() });
+
     info!("right before activate kernel_memory_mapping");
 
     let physical_allocator = Rc::new(RefCell::new(PhysicalMemoryPageAllocator::new(
@@ -385,7 +391,9 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
     )));
 
     for block in unsafe { KERNEL_MEMORY_BLOCKS.iter() } {
-        physical_allocator.borrow_mut().alloc_specific_page(block.physical_address);
+        physical_allocator
+            .borrow_mut()
+            .alloc_specific_page(block.physical_address);
     }
 
     let table_address = kernel_memory_mapping.get_table_address();
@@ -397,27 +405,21 @@ pub extern "C" fn kmain(dtb_address: *const u8) -> ! {
 
     unsafe { KERNEL_DATA_ABORT_HANDLER = Some(page_allocator) };
 
-    info!("right after set KERNEL_DATA_ABORT_HANDLER");
-    
-    
-    info!("HELLO");
+    unsafe { TranslationTable::activate_address(table_address) };
 
     system_call(1, 1);
 
     info!("END OF KERNEL INITIALIZATION");
 
-    let process = Process::from_binary_slice(0, wwos_blob::get_wwos_blob(), physical_allocator);
+    let process = Process::from_binary_slice(wwos_blob::get_wwos_blob(), physical_allocator);
 
     info!("right after from_binary_slice");
-
 
     unsafe { PROCESS = Some(process) };
 
     unsafe { PROCESS.as_mut().unwrap().jump_to_userspace() };
 
-    loop {
-        
-    }
+    loop {}
 }
 
 #[cfg(not(test))]

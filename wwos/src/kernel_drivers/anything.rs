@@ -1,7 +1,5 @@
 // linux,dummy-virt
 
-use core::{fmt::Write, ptr::write_volatile};
-
 use alloc::vec;
 
 use crate::library::{DeviceTreeNode, MemoryMapping};
@@ -36,8 +34,8 @@ impl Driver for Bcm2711Driver {
     fn get_memory_mapping(&self) -> Option<crate::library::MemoryMapping> {
         let mut mapping = MemoryMapping::new();
 
-        mapping.add(0xfc00_0000, 0x7c00_0000, 0x400_0000);          // peripherals
-        mapping.add(0x0_0000_0000, 0x0_0000_0000, 0x4_0000_0000);   // memory
+        mapping.add(0xfc00_0000, 0x7c00_0000, 0x400_0000); // peripherals
+        mapping.add(0x0_0000_0000, 0x0_0000_0000, 0x4_0000_0000); // memory
         Some(mapping)
     }
 }
@@ -97,7 +95,6 @@ impl Driver for WwosMemoryDriver {
 }
 
 pub struct WwosMemoryDriverFactory;
-
 
 impl super::DriverFactory for WwosMemoryDriverFactory {
     fn supported_devices(&self) -> alloc::vec::Vec<&'static str> {

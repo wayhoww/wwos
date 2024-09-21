@@ -1,9 +1,12 @@
 use core::{alloc::Layout, arch::asm};
 
-use alloc::{alloc::{alloc, dealloc}, boxed::Box, vec::Vec};
+use alloc::{
+    alloc::{alloc, dealloc},
+    boxed::Box,
+    vec::Vec,
+};
 
 use crate::memory::{MemoryBlock, MemoryPermission};
-
 
 struct TranslationTableNode {
     level: usize,
@@ -50,8 +53,7 @@ impl TranslationTableNode {
 
         if self.level < 3 {
             if self.next_level_tables[index].is_none() {
-                self.next_level_tables[index] =
-                    Some(TranslationTableNode::new(self.level + 1));
+                self.next_level_tables[index] = Some(TranslationTableNode::new(self.level + 1));
                 unsafe {
                     let addr = self.table.offset(index as isize);
                     *addr = (self.next_level_tables[index]
@@ -68,13 +70,14 @@ impl TranslationTableNode {
                 .add_node(page);
         } else {
             let mut block_template = 0x0060000000000040Bu64;
-            
+
             match page.attr.permission {
                 MemoryPermission::KernelRWX => {}
-                MemoryPermission::KernelRXUserRX => { block_template |= 0b11 << 6; }
-                MemoryPermission::KernelRwUserRWX => { block_template |= 0b01 << 6; }
+                MemoryPermission::KernelRwUserRWX => {
+                    block_template |= 0b01 << 6;
+                }
             }
-            
+
             unsafe {
                 let addr = self.table.offset(index as isize);
                 *addr = block_template | (page.physical_address as u64);

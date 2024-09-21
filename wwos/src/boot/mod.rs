@@ -1,5 +1,3 @@
-use core::arch::global_asm;
-
 #[cfg(WWOS_BOARD = "qemu_aarch64_virt9")]
 core::arch::global_asm!(
     r#"
@@ -30,4 +28,3 @@ _start:
     bl      kmain
 "#
 );
-

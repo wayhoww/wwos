@@ -1,8 +1,8 @@
-mod process;
 mod memory;
+mod process;
 
-pub use process::*;
 pub use memory::*;
+pub use process::*;
 
 use core::arch::asm;
 
@@ -214,17 +214,16 @@ pub unsafe extern "C" fn handle_exception(arg0: u64, arg1: u64, regs: u64) {
                 let arg = arg1;
                 handle_system_call(syscall_id, arg);
                 PROCESS.as_ref().unwrap().jump_to_userspace();
-            },
+            }
             ExceptionType::DataAbort => {
                 PROCESS.as_mut().unwrap().on_data_abort(far_el1 as usize);
                 PROCESS.as_ref().unwrap().jump_to_userspace();
-            },
+            }
             _ => {
                 panic!("Unhandled exception from userspace");
             }
         }
     } else {
-
         match exception_type {
             ExceptionType::Unknown => {
                 info!("Unknown exception");
@@ -233,8 +232,7 @@ pub unsafe extern "C" fn handle_exception(arg0: u64, arg1: u64, regs: u64) {
                 info!("Trapped exception");
             }
             ExceptionType::SystemCall => handle_system_call(arg0, arg1),
-            ExceptionType::DataAbort => {            
-    
+            ExceptionType::DataAbort => {
                 if let Some(handler) = unsafe { KERNEL_DATA_ABORT_HANDLER.as_mut() } {
                     if handler.handle_data_abort(far_el1 as usize) {
                         return;
@@ -284,7 +282,6 @@ pub fn get_current_el() -> u64 {
     current_el >> 2
 }
 
-
 pub fn start_userspace_execution(addr: usize, sp: usize, ttbr0_el1: usize) -> ! {
     let target_address = SHARED_REGION_BEGIN; // TODO: improve calculation
     unsafe {
@@ -301,9 +298,6 @@ pub fn start_userspace_execution(addr: usize, sp: usize, ttbr0_el1: usize) -> ! 
         );
     }
 }
-
-
-
 
 // https://developer.arm.com/documentation/102374/0102/Procedure-Call-Standard
 // X19-X23, X24-X28 are callee-saved registers
