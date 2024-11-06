@@ -1,0 +1,25 @@
+ENTRY(_start)
+SECTIONS {
+    . = 0x100000000;     # 4G
+
+    .text.wwos.app.start : { *(.text.wwos.app.start) }
+    .text                : { *(.text),   *(.text.*)      }
+    .data                : { *(.data),   *(.data.*)      }
+    .rodata              : { *(.rodata), *(.rodata.*)    }
+    .bss                 : { *(.bss),    *(.bss.*)       }
+    .rela                : { *(.rela),   *(.rela.*)      }
+    .eh_frame_hdr        : { *(.eh_frame_hdr)    }
+    .eh_frame            : { *(.eh_frame)        }
+    .shstrtab            : { *(.shstrtab)        }
+    .strtab              : { *(.strtab)          }
+    .symtab              : { *(.symtab)          }
+    .symtab_shndx        : { *(.symtab_shndx)    }
+
+    .other : { *(*) }
+
+    . = 0x200000000;  # 8G
+    . = 0x240000000;  # 9G, for stack
+    _wwos_application_stack_top = .;
+
+    . = 0x400000000;  # 16G, beginning of heap.
+}

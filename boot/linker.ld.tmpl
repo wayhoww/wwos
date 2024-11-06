@@ -1,0 +1,41 @@
+ENTRY(_start)
+SECTIONS {
+    . = PA_ENTRY;
+
+    loader_memory_begin_mark = .;
+
+    .text.wwos.boot : { *(.text.wwos.boot) }
+
+    . = ALIGN(8);
+    memdisk_blob_begin_mark = .;
+    .data.wwos.memdisk : { *(.data.wwos.memdisk) }
+    . = ALIGN(8);
+    memdisk_blob_end_mark = .;
+
+    . = PA_ENTRY + SIZE_PREKERNEL;
+    
+    kernel_blob_begin_mark = .;    
+    .data.wwos.kernel : { *(.data.wwos.kernel) }
+
+    .text           : { *(.text),   *(.text.*)      }
+    .data           : { *(.data),   *(.data.*)      }
+    .rodata         : { *(.rodata), *(.rodata.*)    }
+    .bss            : { *(.bss),    *(.bss.*)       }
+    .rela           : { *(.rela),   *(.rela.*)      }
+
+    .eh_frame_hdr   : { *(.eh_frame_hdr)    }
+    .eh_frame       : { *(.eh_frame)        }
+    .shstrtab       : { *(.shstrtab)        }
+    .strtab         : { *(.strtab)          }
+    .symtab         : { *(.symtab)          }
+    .symtab_shndx   : { *(.symtab_shndx)    }
+
+    .other : { *(*) }
+
+    . = ALIGN(8);
+    . += 0x1000;    # 4kB of stack memory
+    stack_top = .;
+
+    . = ALIGN(8);
+    loader_memory_end_mark = .;
+}

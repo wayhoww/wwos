@@ -1,0 +1,29 @@
+ENTRY(_start)
+SECTIONS {
+    . = KA_BEGIN + PA_ENTRY + SIZE_PREKERNEL;
+    wwos_kernel_begin_mark = .;
+
+    .text.wwos.start : { *(.text.wwos.start)         }
+
+    .text   : { *(.text),   *(.text.*)   }
+    .data   : { *(.data),   *(.data.*)   }
+    .rodata : { *(.rodata), *(.rodata.*) }
+    .bss    : { *(.bss),    *(.bss.*)    }
+    .rela   : { *(.rela),   *(.rela.*)   }
+
+    .eh_frame_hdr   : { *(.eh_frame_hdr) }
+    .eh_frame       : { *(.eh_frame)     }
+    .shstrtab       : { *(.shstrtab)     }
+    .strtab         : { *(.strtab)       }
+    .symtab         : { *(.symtab)       }
+    .symtab_shndx   : { *(.symtab_shndx) }
+
+    .other : { *(*) }
+
+    . = ALIGN(8);
+    . += 0x10000; /* 4kB of stack memory */
+    stack_top = .;
+
+    . = ALIGN(8);
+    wwos_kernel_end_mark = .;
+}
