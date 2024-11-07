@@ -7,16 +7,16 @@ namespace wwos::kernel {
 struct table_descriptor {
     union {
         struct {
-            uint8_t valid: 1;
-            uint8_t type: 1;
+            uint64_t valid: 1;
+            uint64_t type: 1;
             uint16_t ignored: 10;
             uint64_t next_level_table_addr: 28;
-            uint16_t unk_sbzp: 12;
-            uint8_t ignored2: 7;
-            uint8_t pxn_table: 1;
-            uint8_t xn_table: 1;
-            uint8_t ap_table: 2;
-            uint8_t ns_table: 1;
+            uint64_t unk_sbzp: 12;
+            uint64_t ignored2: 7;
+            uint64_t pxn_table: 1;
+            uint64_t xn_table: 1;
+            uint64_t ap_table: 2;
+            uint64_t ns_table: 1;
         }  __attribute__((packed));
         uint64_t raw = 0;
     };
@@ -27,21 +27,21 @@ static_assert(sizeof(table_descriptor) == 8, "table_descriptor size is not 8 byt
 struct page_descriptor {
     union {
         struct {
-            uint8_t valid: 1;
-            uint8_t type: 1;
-            uint8_t index: 3;           // 2:4
-            uint8_t ns: 1;              // 5
-            uint8_t ap: 2;              // 6:7
-            uint8_t sh: 2;              // 8:9
-            uint8_t af: 1;              // 10
-            uint8_t ng: 1;              // 11
+            uint64_t valid: 1;
+            uint64_t type: 1;
+            uint64_t index: 3;           // 2:4
+            uint64_t ns: 1;              // 5
+            uint64_t ap: 2;              // 6:7
+            uint64_t sh: 2;              // 8:9
+            uint64_t af: 1;              // 10
+            uint64_t ng: 1;              // 11
             uint64_t addr: 28;
-            uint16_t unk_sbzp: 12;
-            uint8_t contig: 1;          // 52
-            uint8_t pxn: 1;             // 53
-            uint8_t uxn: 1;             // 54
-            uint8_t preserved: 4;       // 55:58
-            uint8_t _padding2: 5;       // 59:63
+            uint64_t unk_sbzp: 12;
+            uint64_t contig: 1;          // 52
+            uint64_t pxn: 1;             // 53
+            uint64_t uxn: 1;             // 54
+            uint64_t preserved: 4;       // 55:58
+            uint64_t _padding2: 5;       // 59:63
         } __attribute__((packed)) ;
         uint64_t raw = 0;
     };

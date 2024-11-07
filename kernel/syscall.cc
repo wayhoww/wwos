@@ -3,12 +3,15 @@
 #include "logging.h"
 #include "process.h"
 #include "wwos/assert.h"
+#include "wwos/format.h"
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string_view.h"
 
 namespace wwos::kernel {
     void receive_syscall(syscall_id id, uint64_t arg) {
+        printf("syscall received {}\n", static_cast<uint64_t>(id));
+
         switch (id) {
             case syscall_id::PUTCHAR:
                 kputchar(arg);
@@ -22,21 +25,20 @@ namespace wwos::kernel {
                 break;
                 
             case syscall_id::FORK:
-                fork_task(current_pid);
-                schedule();
+                fork_current_task();
                 break;
             case syscall_id::EXEC:
-                replace_task(current_pid, string_view(reinterpret_cast<const char*>(arg)));
-                schedule();
+                replace_current_task(string_view(reinterpret_cast<const char*>(arg)));
                 break;
             case syscall_id::SLEEP:
                 schedule();
                 break;
             case syscall_id::GET_PID:
-                get_current_task().pcb.set_return_value(current_pid);
+            {
+                auto current_task = get_current_task();
+                current_task.pcb.set_return_value(current_task.pid);
                 break;
-
-
+            }
             case syscall_id::OPEN_FILE_OR_DIRECTORY:
             {
                 const char* path = reinterpret_cast<const char*>(arg);

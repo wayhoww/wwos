@@ -1,11 +1,11 @@
 #include "aarch64/interrupt.h"
 #include "aarch64/memory.h"
+#include "scheduler.h"
 #include "wwos/alloc.h"
 #include "wwos/assert.h"
 #include "wwos/defs.h"
 #include "wwos/format.h"
 #include "wwos/stdint.h"
-#include "wwos/stdio.h"
 #include "wwos/string_view.h"
 #include "wwos/vector.h"
 
@@ -15,11 +15,8 @@
 #include "arch.h"
 
 namespace wwos::kernel {
-    uint64_t current_pid = 0;
+    scheduler* p_scheduler = nullptr;
 
-
-    vector<task_info>* p_task_list;
-    size_t schedule_index = 0;
     size_t pid_counter = 0;
 
     void load_program(translation_table_user& ttu, string_view binary) {
@@ -53,21 +50,11 @@ namespace wwos::kernel {
         }
     }
 
+    void fork_current_task() {
+        println("forking current task");
 
-    task_info* get_task(uint64_t pid) {
-        for(auto& task : *p_task_list) {
-            if(task.pid == pid) {
-                return &task;
-            }
-        }
-
-        return nullptr;
-    }
-
-    uint64_t fork_task(uint64_t parent_pid) {
-        auto parent = get_task(parent_pid);
+        auto parent = p_scheduler->get_executing_task();
         wwassert(parent != nullptr, "Invalid parent pid");
-
 
         // do not copy kernel stack.
         auto kernel_stack = pallocator->alloc();
@@ -75,7 +62,7 @@ namespace wwos::kernel {
         ttkernel->activate();
 
 
-        task_info task = {
+        task_info* task = new task_info {
             .pid = pid_counter++,
             .pcb = {
                 .pc = parent->pcb.pc,
@@ -88,7 +75,7 @@ namespace wwos::kernel {
             }
         };
 
-        parent->pcb.set_return_value(task.pid);
+        parent->pcb.set_return_value(task->pid);
 
         auto pages = parent->pcb.tt->get_all_pages();
         for(auto& [va, pa] : pages) {
@@ -97,16 +84,14 @@ namespace wwos::kernel {
             ttkernel->activate();
             auto new_va_kernel = new_pa + KA_BEGIN;
             memcpy(reinterpret_cast<void*>(new_va_kernel), reinterpret_cast<void*>(pa + KA_BEGIN), translation_table_kernel::PAGE_SIZE);
-            task.pcb.tt->set_page(va, new_pa);
+            task->pcb.tt->set_page(va, new_pa);
         }
         
-        p_task_list->push_back(task);
-        return task.pid;
+        p_scheduler->add_task(task);
     }
 
     void initialize_process_subsystem() {
-        p_task_list = new vector<task_info>();
-        schedule_index = 0;
+        p_scheduler = new scheduler();
         pid_counter = 0;
     }
 
@@ -117,9 +102,9 @@ namespace wwos::kernel {
         ttkernel->set_page(kernel_stack, kernel_stack);
         ttkernel->activate();
 
-        pid = pid == -1 ? pid_counter++ : pid;
+        pid = pid == ~0ull ? pid_counter++ : pid;
 
-        task_info task = {
+        task_info* task = new task_info {
             .pid = pid,
             .pcb = {
                 .pc = USERSPACE_TEXT,
@@ -132,48 +117,66 @@ namespace wwos::kernel {
             }
         };
 
+
+        println("loading program #1");
         auto inode = get_inode(path);
+        println("loading program #2");
         auto inode_size = get_inode_size(inode);
         vector<uint8_t> binary(inode_size);
 
         read_inode(binary.data(), inode, 0, inode_size);
-        load_program(*task.pcb.tt, binary);
+        load_program(*task->pcb.tt, binary);
 
-        p_task_list->push_back(task);
+        p_scheduler->add_task(task);
     }
 
-    void replace_task(uint64_t pid, string_view path) {
-        auto task = get_task(pid);
+    void replace_current_task(string_view path) {
+        println("replacing current task");
+
+        auto task = p_scheduler->get_executing_task();
         wwassert(task != nullptr, "Invalid pid");
-        // todo: destroy old task
-        p_task_list->erase(task);
-        create_process(path, pid);
+
+        p_scheduler->remove_task(task); 
+        delete task; // TODO: free memory
+
+        println("creating new process");
+
+        create_process(path, task->pid);
+
+        println("new process created");
+        printf("executing task: {:x}\n", uint64_t(p_scheduler->get_executing_task()));
+
+        wwassert(p_scheduler->get_executing_task() != nullptr, "no executing task");
     }
 
     [[noreturn]] void schedule() {
-        wwassert(p_task_list->size() > 0, "empty task list");
+        auto task = p_scheduler->schedule();
+        
+        wwassert(task != nullptr, "no task to schedule");
 
-        schedule_index++;
+        // printf("scheduling task {}\n", task->pid);
+        // printf("pc: {:x}\n", task->pcb.pc);
 
-        if(schedule_index >= p_task_list->size()) {
-            schedule_index = 0;
-        }
-
-        auto& task = (*p_task_list)[schedule_index];
-        current_pid = task.pid;
-
-        set_timeout_interrupt(100000);
-        task.pcb.tt->activate();
-        eret_to_unprivileged(task.pcb.pc, task.pcb.usp, task.pcb.ksp, task.pcb.state, task.pcb.has_return_value, task.pcb.return_value);
+        set_timeout_interrupt(10000);
+        // printf("activating tt {:x}\n", reinterpret_cast<uint64_t>(task->pcb.tt));
+        task->pcb.tt->activate();
+        // printf("activated tt {:x}\n", reinterpret_cast<uint64_t>(task->pcb.tt));
+        eret_to_unprivileged(
+            task->pcb.pc, task->pcb.usp, task->pcb.ksp, task->pcb.state, 
+            task->pcb.has_return_value, task->pcb.return_value);
 
         __builtin_unreachable();
     }
 
     task_info& get_current_task() {
-        return (*p_task_list)[schedule_index];
+        auto current_task = p_scheduler->get_executing_task();
+        wwassert(current_task, "no executing task");
+
+        return *current_task;
     }
 
     [[noreturn]] void on_timeout() {
+        println("timeout");
         schedule();
     }
 

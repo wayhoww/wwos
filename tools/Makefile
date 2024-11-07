@@ -1,6 +1,14 @@
-CC = $(LLVM)/bin/clang++
+ifeq ($(GNU), 1)
+	CC = g++
+else
+	ifeq ($(LLVM),)
+		CC = clang++
+	else
+		CC = $(LLVM)/bin/clang++
+	endif
+endif
 
-CCFLAGS = -I../include -DWWOS_HOST -O0 -g
+CCFLAGS = -std=c++17 -I../include -DWWOS_HOST -O0 -g
 
 .PHONY: all clean
 

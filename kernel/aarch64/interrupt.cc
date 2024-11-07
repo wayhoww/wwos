@@ -2,6 +2,7 @@
 
 #include "wwos/algorithm.h"
 #include "wwos/assert.h"
+#include "wwos/format.h"
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/syscall.h"
@@ -56,6 +57,7 @@ void setup_interrupt() {
 }
 
 void save_process_info(uint64_t p_sp) {
+    println("current task?");
     auto& task = get_current_task();
     uint64_t* p = reinterpret_cast<uint64_t*>(p_sp);
 
@@ -66,6 +68,7 @@ void save_process_info(uint64_t p_sp) {
     task.pcb.state.spsr = p[31];
     task.pcb.pc = p[32];
     task.pcb.usp = p[33];
+    // task.pcb.ksp = p[34];
 
     task.pcb.has_return_value = false;
     task.pcb.return_value = 0xdeadbeef;
@@ -158,6 +161,51 @@ void save_process_info(uint64_t p_sp) {
     __builtin_unreachable();
 }
 
+
+// [[noreturn]] void jump_el1(uint64_t addr, uint64_t sp_kernel, process_state state){
+//     asm volatile("MSR SPSR_EL1, %0" : : "r"(state.spsr));
+
+//     asm volatile(R"(
+//         MOV SP, %1
+
+//         MOV x0,  %2
+//         MOV x1,  %0
+//         LDR x2,  [x1, #16]
+//         LDR x3,  [x1, #24]
+//         LDR x4,  [x1, #32]
+//         LDR x5,  [x1, #40]
+//         LDR x6,  [x1, #48]
+//         LDR x7,  [x1, #56]
+//         LDR x8,  [x1, #64]
+//         LDR x9,  [x1, #72]
+//         LDR x10, [x1, #80]
+//         LDR x11, [x1, #88]
+//         LDR x12, [x1, #96]
+//         LDR x13, [x1, #104]
+//         LDR x14, [x1, #112]
+//         LDR x15, [x1, #120]
+//         LDR x16, [x1, #128]
+//         LDR x17, [x1, #136]
+//         LDR x18, [x1, #144]
+//         LDR x19, [x1, #152]
+//         LDR x20, [x1, #160]
+//         LDR x21, [x1, #168]
+//         LDR x22, [x1, #176]
+//         LDR x23, [x1, #184]
+//         LDR x24, [x1, #192]
+//         LDR x25, [x1, #200]
+//         LDR x26, [x1, #208]
+//         LDR x27, [x1, #216]
+//         LDR x28, [x1, #224]
+//         LDR x29, [x1, #232]
+//         LDR x30, [x1, #240]
+//         LDR x1,  [x1, #8]
+//         ERET
+//     )" : : "r"(&state.registers), "r"(sp_kernel), "r"(ret): "x0", "x1");
+
+//     __builtin_unreachable();
+// }
+
 gic02_driver* g_interrupt_controller;
 
 void initialize_timer() {
@@ -218,8 +266,7 @@ constexpr size_t TIMER_IRQ = 30;
         }
     } else {
         if(ec_bits == 0b000000) {
-            wwassert(false, "Unknown reason: not supported yet");
-        
+            wwassert(false, "Unknown reason: not supported yet");        
         } else if(ec_bits <= 0b010000) {
             wwassert(false, "Trap: not supported yet");
         } else if(ec_bits == 0b010001 || ec_bits == 0b010101) {
@@ -237,6 +284,7 @@ constexpr size_t TIMER_IRQ = 30;
     }
 
     auto& current_task = get_current_task();
+    printf("returning to task {}, pc={:x}\n", current_task.pid, current_task.pcb.pc);
     eret_to_unprivileged(current_task.pcb.pc, current_task.pcb.usp, current_task.pcb.ksp, current_task.pcb.state, current_task.pcb.has_return_value, current_task.pcb.return_value);
 }
 

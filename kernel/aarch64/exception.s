@@ -1,7 +1,7 @@
 .section ".text.wwos.exception"
 
 protect_and_handle_exception:
-    SUB     sp, sp, #0x10C
+    SUB     sp, sp, #0x110
     STP     x0, x1,   [sp, #0x00]
     STP     x2, x3,   [sp, #0x10]
     STP     x4, x5,   [sp, #0x20]
@@ -24,7 +24,7 @@ protect_and_handle_exception:
     STP     x0, x1, [sp, #0xF8];
 
     MRS     x0, SP_EL0;
-    STR     x0, [sp, #0x108];
+    STR     x0, [sp, #0x108]
     
     MOV     x0, x10;
     MOV     x1, x11;

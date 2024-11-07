@@ -274,6 +274,8 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
 }
 
 int main() {
+    while(true);
+
     wwos::println("WWOS Shell!");
 
     // wwos::int64_t root = wwos::open("/");

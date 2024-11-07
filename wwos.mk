@@ -1,10 +1,26 @@
 BOARD = aarch64-virt9
 
-CC = $(LLVM)/bin/clang++
-AS = $(LLVM)/bin/clang
-LD = $(LLVM)/bin/ld.lld
-AR = $(LLVM)/bin/llvm-ar
-
+ifeq ($(GNU), 1)
+	CC = aarch64-elf-g++
+	AS = aarch64-elf-gcc
+	LD = aarch64-elf-ld
+	AR = aarch64-elf-ar
+	OBJCOPY = aarch64-elf-objcopy
+else
+	ifeq ($(LLVM),)
+		CC = clang++
+		AS = clang
+		LD = ld.lld
+		AR = llvm-ar
+		OBJCOPY = llvm-objcopy
+	else
+		CC = $(LLVM)/bin/clang++
+		AS = $(LLVM)/bin/clang
+		LD = $(LLVM)/bin/ld.lld
+		AR = $(LLVM)/bin/llvm-ar
+		OBJCOPY = $(LLVM)/bin/llvm-objcopy
+	endif
+endif
 
 # PA_ENTRY = 0x40000000
 # 0x40000000 is the beginning of main memory
@@ -20,5 +36,12 @@ SIZE_PREKERNEL = 0x2000000 # 32 MB
 DEFINES = -DPA_ENTRY=$(PA_ENTRY) -DKA_BEGIN=$(KA_BEGIN) -DSIZE_PREKERNEL=$(SIZE_PREKERNEL) -DPA_UART_LOGGING=$(PA_UART_LOGGING)
 
 
-CCFLAGS = --target=aarch64-elf -Iinclude -Wall -Werror -O0 -mgeneral-regs-only -ffreestanding -nostdlib -nostdinc -nostdinc++ -std=c++20 -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -fno-rtti $(DEFINES) 
-ASFLAGS = --target=aarch64-elf
+CCFLAGS = -Iinclude -Wall -Werror -O0 -g -mgeneral-regs-only -ffreestanding -nostdlib -nostdinc -nostdinc++ -std=c++17 -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -fno-rtti -fPIC $(DEFINES) 
+ASFLAGS = 
+
+ifneq ($(GNU),1)
+	CCFLAGS += --target=aarch64-elf
+	ASFLAGS += --target=aarch64-elf
+else
+	CCFLAGS += 
+endif

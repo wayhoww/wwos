@@ -26,6 +26,11 @@ namespace wwos {
     }
 
     template<typename T>
+    T abs(T a) {
+        return a < 0 ? -a : a;
+    }
+
+    template<typename T>
     T swap(T a, T b) {
         T tmp = a;
         a = b;

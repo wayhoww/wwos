@@ -9,6 +9,9 @@ all: wwos.img tools compile_flags.txt
 run: wwos.img
 	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -d int,in_asm,guest_errors,int -D qemu.log
 
+debug: wwos.img
+	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -d int,in_asm,guest_errors,int -D qemu.log -S -s
+
 test:
 	make -C test run
 
@@ -25,6 +28,7 @@ dev: compile_flags.txt test/compile_flags.txt
 
 clean:
 	rm -f qemu.log
+	rm -f kernel/aarch64/start.s
 	find . \( -name "*.o" -o -name "*.elf" -o -name "*.img" -o -name "*.ld" -o -name "*.a" -o -name "*.app"  -o -name "*.wwfs" -o -name "*.bin" -o -name "compile_flags.txt" \) -type f -delete
 	make -C libwwos clean
 	make -C applications/init clean
@@ -42,7 +46,7 @@ boot/boot.elf: boot/linker.ld boot/boot.o boot/loader.o
 	$(LD) -nostdlib -T$< $(filter-out $<,$^) -o $@
 
 boot/boot.img: boot/boot.elf
-	$(LLVM)/bin/llvm-objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 boot/loader.o: boot/$(BOARD)/loader.cc
 	$(CC) $(CCFLAGS) -c $< -o $@
@@ -50,8 +54,11 @@ boot/loader.o: boot/$(BOARD)/loader.cc
 libwwos/libwwos_kernel.a:
 	$(MAKE) -C libwwos libwwos_kernel.a
 
-KERNEL_OBJS = kernel/main.o kernel/logging.o kernel/global.o kernel/memory.o kernel/syscall.o kernel/process.o kernel/filesystem.o kernel/drivers/gic2.o kernel/drivers/pl011.o
+KERNEL_OBJS = kernel/main.o kernel/logging.o kernel/global.o kernel/memory.o kernel/syscall.o kernel/process.o kernel/filesystem.o kernel/scheduler.o kernel/drivers/gic2.o kernel/drivers/pl011.o
 KERNEL_AARCH64_OBJS = kernel/aarch64/memory.o kernel/aarch64/interrupt.o kernel/aarch64/exception.o kernel/aarch64/start.o
+
+kernel/aarch64/start.s: kernel/aarch64/start.s.tmpl
+	$(CC) -P -E -xc++ $(DEFINES) $< -o $@
 
 kernel/aarch64/start.o: kernel/aarch64/start.s
 	$(AS) $(ASFLAGS) -c $< -o $@
@@ -69,7 +76,7 @@ kernel/kernel.elf: kernel/linker.ld $(KERNEL_OBJS) $(KERNEL_AARCH64_OBJS) libwwo
 	$(LD) -nostdlib -T$< $(filter-out $<,$^) -o $@
 
 kernel/kernel.img: kernel/kernel.elf
-	$(LLVM)/bin/llvm-objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 
 memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app

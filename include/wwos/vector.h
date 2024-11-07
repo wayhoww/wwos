@@ -176,16 +176,9 @@ public:
     }
 
     void insert(iterator position, const T& value) {
-        if(m_size == m_capacity) {
-            m_capacity *= 2;
-            T* new_data = new T[m_capacity];
-            for(size_t i = 0; i < m_size; i++) {
-                new_data[i] = m_data[i];
-            }
-            delete[] m_data;
-            m_data = new_data;
-        }
-        for(size_t i = m_size; i > position.m_ptr - m_data; i--) {
+        expand();
+        wwassert(position.m_ptr >= m_data && position.m_ptr <= m_data + m_size, "position is out of range");
+        for(size_t i = m_size; i > size_t(position.m_ptr - m_data); i--) {
             m_data[i] = m_data[i - 1];
         }
         m_data[position.m_ptr - m_data] = value;

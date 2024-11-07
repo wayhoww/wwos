@@ -14,7 +14,7 @@ main.elf: ../linker.ld main.o $(WWOS_ROOT)/libwwos/libwwos.a
 	$(LD) -nostdlib -T$< $(filter-out $<,$^) -o $@
 
 shell.app: main.elf
-	$(LLVM)/bin/llvm-objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 clean:
 	rm -f main.o main.elf shell.app

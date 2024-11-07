@@ -22,7 +22,6 @@ extern wwos::uint64_t memdisk_blob_begin_mark;
 
 namespace wwos::kernel {
 
-
 translation_table_kernel* initialize_memory() {
     static translation_table_kernel tt;
 
@@ -33,6 +32,7 @@ translation_table_kernel* initialize_memory() {
 
     size_t aligned_begin = align_down(reinterpret_cast<uint64_t>(&wwos_kernel_begin_mark), translation_table_kernel::PAGE_SIZE);
     size_t aligned_end = align_up(reinterpret_cast<uint64_t>(&wwos_kernel_end_mark), translation_table_kernel::PAGE_SIZE);
+
     static allocator allocator(aligned_end, KERNEL_RESERVED_HEAP);
     kallocator = &allocator;
 
@@ -84,7 +84,7 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
 }
 
 // at exit
-extern "C" void atexit() { }
+extern "C" int atexit(void (*)()) { return 0; }
 
 
 extern "C" void kmain(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {

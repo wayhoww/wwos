@@ -92,3 +92,24 @@ void operator delete(void* address, std::align_val_t align) {
 void operator delete[](void* address, std::align_val_t align) {
     uallocator->deallocate(address);
 }
+
+
+void* operator new(wwos::size_t size, wwos::size_t align) {
+    void* out = uallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(out, "Failed to allocate memory");
+    return out;
+}
+
+void* operator new[](wwos::size_t size, wwos::size_t align) {
+    void* out = uallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(out, "Failed to allocate memory");
+    return out;
+}
+
+void operator delete(void* address, wwos::size_t align) {
+    uallocator->deallocate(address);
+}
+
+void operator delete[](void* address, wwos::size_t align) {
+    uallocator->deallocate(address);
+}

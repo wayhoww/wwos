@@ -46,3 +46,20 @@ void operator delete(void* address, std::align_val_t align) {
 void operator delete[](void* address, std::align_val_t align) {
     wwos::kernel::kallocator->deallocate(address);
 }
+
+
+void* operator new(wwos::size_t size, wwos::size_t align) {
+    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+}
+
+void* operator new[](wwos::size_t size, wwos::size_t align) {
+    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+}
+
+void operator delete(void* address, wwos::size_t align) {
+    wwos::kernel::kallocator->deallocate(address);
+}
+
+void operator delete[](void* address, wwos::size_t align) {
+    wwos::kernel::kallocator->deallocate(address);
+}

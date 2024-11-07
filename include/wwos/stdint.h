@@ -14,12 +14,15 @@ using int32_t = signed int;
 using int64_t = signed long long;
 
 using size_t = unsigned long;
+
 }
 
 #ifndef WWOS_HOST
 
 namespace std {
+#ifdef __clang__
     enum struct align_val_t: wwos::size_t {};
+#endif
 }
 
 #endif

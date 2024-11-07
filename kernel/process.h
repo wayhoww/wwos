@@ -26,6 +26,8 @@ struct process_control {
 };
 
 struct task_info {
+    uint64_t vruntime = 0;
+    uint16_t priority = 1000;
     uint64_t pid;
     process_control pcb;
 };
@@ -33,7 +35,7 @@ struct task_info {
 extern uint64_t current_pid;
 
 void create_process(string_view path, uint64_t pid=-1);
-void replace_task(uint64_t pid, string_view path);
+void replace_current_task(string_view path);
 
 [[noreturn]] void schedule();
 
@@ -41,7 +43,7 @@ void initialize_process_subsystem();
 
 task_info& get_current_task();
 
-uint64_t fork_task(uint64_t parent_pid);
+void fork_current_task();
 
 [[noreturn]] void on_timeout();
 

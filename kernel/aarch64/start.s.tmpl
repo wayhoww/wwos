@@ -1,0 +1,17 @@
+.section ".text.wwos.start"  
+
+.global _start
+
+_start:
+    LDR     x9, =stack_top
+    LDR     x10, =kernel_offset
+    LDR     x10, [x10]
+    
+    ADD     x9, x9, x10
+    MOV     sp, x9
+    BL      kmain
+
+.section ".data.wwos.start"
+
+kernel_offset:
+.xword KA_BEGIN

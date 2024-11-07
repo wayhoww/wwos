@@ -106,10 +106,8 @@ void add_file(const std::string& filename, const std::string& name, const std::s
             } else {
                 auto inode_id = fs.create(parent, name_piece.c_str(), inode_type::file);
                 fs.initialize();
-                std::cout << "SIZE = " << fs.get_meta().block_size << std::endl;
                 fs.write_data(inode_id, 0, file_to_add.size(), file_to_add.data());
                 fs.initialize();
-                std::cout << "SIZE = " << fs.get_meta().block_size << std::endl;
             }
         } else {
             if(!existing) {

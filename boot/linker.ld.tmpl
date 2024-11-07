@@ -17,11 +17,11 @@ SECTIONS {
     kernel_blob_begin_mark = .;    
     .data.wwos.kernel : { *(.data.wwos.kernel) }
 
-    .text           : { *(.text),   *(.text.*)      }
-    .data           : { *(.data),   *(.data.*)      }
-    .rodata         : { *(.rodata), *(.rodata.*)    }
-    .bss            : { *(.bss),    *(.bss.*)       }
-    .rela           : { *(.rela),   *(.rela.*)      }
+    .text           : { *(.text)    *(.text.*)      }
+    .data           : { *(.data)    *(.data.*)      }
+    .rodata         : { *(.rodata)  *(.rodata.*)    }
+    .bss            : { *(.bss)     *(.bss.*)       }
+    .rela           : { *(.rela)    *(.rela.*)      }
 
     .eh_frame_hdr   : { *(.eh_frame_hdr)    }
     .eh_frame       : { *(.eh_frame)        }

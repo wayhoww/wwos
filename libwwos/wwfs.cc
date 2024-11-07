@@ -122,7 +122,7 @@ int64_t basic_file_system::create(int64_t parent, string_view name, inode_type t
     }
 
     uint64_t inode_id_new = allocate_inode();
-    wwassert(inode_id_new != -1, "No available inode");
+    wwassert(inode_id_new != ~0ull, "No available inode");
 
     inode inode_new = get_inode(inode_id_new);
     inode_new.type = type;
