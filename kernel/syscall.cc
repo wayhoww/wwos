@@ -10,13 +10,11 @@
 
 namespace wwos::kernel {
     void receive_syscall(syscall_id id, uint64_t arg) {
-        printf("syscall received {}\n", static_cast<uint64_t>(id));
-
         switch (id) {
             case syscall_id::PUTCHAR:
                 kputchar(arg);
                 break;
-            case syscall_id::GETCHAR:
+        case syscall_id::GETCHAR:
                 get_current_task().pcb.set_return_value(kgetchar());
                 break;
 

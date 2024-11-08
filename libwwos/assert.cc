@@ -17,6 +17,18 @@ namespace wwos {
         }
     }
 
+    void trigger_mark(string_view file, int line, string_view msg) {
+        // do not use dynamic memory allocation here
+
+        print("mark at ");
+        print(file);
+        print(":");
+        print_int(line);
+        print("    info: ");
+        print(msg);
+        print("\n");
+    }
+
     void trigger_assert(string_view expr, string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
 

@@ -58,6 +58,7 @@ void translation_table<regime>::set_page(uint64_t va, uint64_t pa, uint64_t leve
         page.type = 1; // not sure, but looks like different for l1&l2 vs l3
         page.addr = pa >> 12;
         page.af = 1;
+        page.sh = 0b11;
 
         if constexpr (regime == translation_table_regime::USER) {
             page.ap = 0b01; // 0b11: read/write
@@ -109,8 +110,12 @@ void translation_table<regime>::activate() {
 
     if constexpr (regime == translation_table_regime::KERNEL) {
         asm volatile(R"(
+            DSB      SY
+            
             MOV      x0, %0
             MSR      TTBR1_EL1, x0
+
+            DSB      SY
 
             TLBI     VMALLE1
             DSB      SY
@@ -118,8 +123,12 @@ void translation_table<regime>::activate() {
         )" : : "r" (pa): "x0");
     } else {
         asm volatile(R"(
+            DSB      SY
+
             MOV      x0, %0
             MSR      TTBR0_EL1, x0
+
+            DSB      SY
 
             TLBI     VMALLE1
             DSB      SY

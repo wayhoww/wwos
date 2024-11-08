@@ -19,18 +19,13 @@ void printhex_memoryless(wwos::uint64_t x) {
 
 
 int main() {
-    int pid = wwos::fork();
-
-    wwos::print("pid=");
-    printhex_memoryless(pid);
-    wwos::putchar('\n');
-
+    
+    wwos::uint32_t pid = wwos::fork();
     if(pid == 0) {
         wwos::exec("/app/shell");
     }
 
-    wwos::println("INIT: 1");
-
     while(true);
+
     return 0;
 }

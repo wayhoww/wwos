@@ -1,7 +1,9 @@
+#include "aarch64/time.h"
 #include "wwos/assert.h"
 #include "wwos/avl.h"
 
 #include "process.h"
+#include "wwos/format.h"
 #include "scheduler.h"
 
 
@@ -33,6 +35,24 @@ void scheduler::add_task(task_info* task) {
     wwassert(executing_task != nullptr, "impossible");
 }
 
+
+        // void replace_task(task_info* task_to_delete, task_info* task_to_add);
+
+void scheduler::replace_task(task_info* task_to_delete, task_info* task_to_add) {
+    wwassert(task_to_delete, "task_to_delete is null");
+    wwassert(task_to_add, "task_to_add is null");
+
+    if(task_to_delete == executing_task) {
+        executing_task = task_to_add;
+        return;
+    }
+
+    auto node = active_tasks.find(task_info_ptr(task_to_delete));
+    wwassert(task_to_delete == node->data.operator->(), "task not found");
+    task_to_add->vruntime = task_to_delete->vruntime;
+    node->data = task_info_ptr(task_to_add);
+}
+
 void scheduler::remove_task(task_info* task) {
     if(task == executing_task) {
         executing_task = nullptr;
@@ -46,6 +66,8 @@ void scheduler::remove_task(task_info* task) {
 }
 
 task_info* scheduler::schedule() {
+    auto physical_time = get_cpu_time();
+
     if(executing_task != nullptr) {
         auto physical_time_spent = physical_time - physical_time_start;
         auto virtual_time_spent = max<uint64_t>(physical_time_spent / executing_task->priority, 1);

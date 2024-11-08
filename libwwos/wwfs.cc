@@ -40,7 +40,7 @@ void file_system_hardware_memory::write(size_t block, const void* buffer) {
     memcpy(reinterpret_cast<uint8_t*>(memory) + block * block_size, buffer, block_size);
 }
 
-basic_file_system::basic_file_system(file_system_hardware* hw) : hw(hw) {
+basic_file_system::basic_file_system(file_system_hardware_memory* hw) : hw(hw) {
     wwassert(hw != nullptr, "Invalid hardware");
 }
 

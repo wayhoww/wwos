@@ -75,7 +75,6 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
     initialize_timer();
 
     create_process("/app/init");
-    println("process 0 created");
     schedule();
     
     while(1);

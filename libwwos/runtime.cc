@@ -2,7 +2,6 @@
 #include "wwos/assert.h"
 #include "wwos/defs.h"
 #include "wwos/stdint.h"
-#include "wwos/stdio.h"
 #include "wwos/syscall.h"
 
 int main();
@@ -12,9 +11,7 @@ wwos::size_t PAGE_SIZE = 4096;
 
 class paged_allocator {
 public:
-    paged_allocator(): heap_size(PAGE_SIZE), alloc(wwos::allocator(wwos::USERSPACE_HEAP, PAGE_SIZE)) {
-        // alloc.enable_logging();
-    }
+    paged_allocator(): heap_size(PAGE_SIZE), alloc(wwos::allocator(wwos::USERSPACE_HEAP, PAGE_SIZE)) {}
 
     void* allocate(wwos::size_t size, wwos::size_t align) {
         void* ptr =  alloc.allocate(size, align);
@@ -45,9 +42,9 @@ paged_allocator* uallocator = nullptr;
 extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
     bool succ = wwos::allocate_page(wwos::USERSPACE_HEAP);
     wwassert(succ, "Failed to allocate page");
-    wwos::println("Allocated page");
 
     static paged_allocator suallocator;
+
     uallocator = &suallocator;
 
     main();

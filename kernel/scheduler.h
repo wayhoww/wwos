@@ -31,7 +31,7 @@ namespace wwos::kernel {
         ~scheduler() = default;
 
         void add_task(task_info* task);
-        void add_physical_time(uint64_t time) { physical_time += time; }
+        void replace_task(task_info* task_to_delete, task_info* task_to_add);
         task_info* schedule();
         void remove_task(task_info* task);
         task_info* get_executing_task();
@@ -39,8 +39,6 @@ namespace wwos::kernel {
         
 
     private:
-        uint64_t physical_time = 0;
-
         uint64_t physical_time_start = 0;
         task_info* executing_task = nullptr;
         

@@ -56,8 +56,8 @@ void setup_translation_table() {
         ISB
 
         MOV      x0, #(1 << 0)                      // M=1           Enable the stage 1 MMU
-        ORR      x0, x0, #(1 << 2)                  // C=1           Enable data and unified caches
-        ORR      x0, x0, #(1 << 12)                 // I=1           Enable instruction fetches to allocate into unified caches
+        // ORR      x0, x0, #(1 << 2)                  // C=1           Enable data and unified caches
+        // ORR      x0, x0, #(1 << 12)                 // I=1           Enable instruction fetches to allocate into unified caches
                                                     // A=0           Strict alignment checking disabled
                                                     // SA=0          Stack alignment checking disabled
                                                     // WXN=0         Write permission does not imply XN

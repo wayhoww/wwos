@@ -57,7 +57,6 @@ void setup_interrupt() {
 }
 
 void save_process_info(uint64_t p_sp) {
-    println("current task?");
     auto& task = get_current_task();
     uint64_t* p = reinterpret_cast<uint64_t*>(p_sp);
 
@@ -68,7 +67,6 @@ void save_process_info(uint64_t p_sp) {
     task.pcb.state.spsr = p[31];
     task.pcb.pc = p[32];
     task.pcb.usp = p[33];
-    // task.pcb.ksp = p[34];
 
     task.pcb.has_return_value = false;
     task.pcb.return_value = 0xdeadbeef;
@@ -284,7 +282,7 @@ constexpr size_t TIMER_IRQ = 30;
     }
 
     auto& current_task = get_current_task();
-    printf("returning to task {}, pc={:x}\n", current_task.pid, current_task.pcb.pc);
+    current_task.pcb.tt->activate();
     eret_to_unprivileged(current_task.pcb.pc, current_task.pcb.usp, current_task.pcb.ksp, current_task.pcb.state, current_task.pcb.has_return_value, current_task.pcb.return_value);
 }
 

@@ -26,7 +26,6 @@ namespace wwos::kernel {
         if(path == "/") {
             return fs->get_root();
         }
-
         if(path.size() == 0) {
             return -1;
         }

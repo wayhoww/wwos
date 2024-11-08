@@ -34,7 +34,7 @@ struct task_info {
 
 extern uint64_t current_pid;
 
-void create_process(string_view path, uint64_t pid=-1);
+void create_process(string_view path, task_info* replacing = nullptr);
 void replace_current_task(string_view path);
 
 [[noreturn]] void schedule();

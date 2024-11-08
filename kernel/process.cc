@@ -51,8 +51,6 @@ namespace wwos::kernel {
     }
 
     void fork_current_task() {
-        println("forking current task");
-
         auto parent = p_scheduler->get_executing_task();
         wwassert(parent != nullptr, "Invalid parent pid");
 
@@ -86,6 +84,8 @@ namespace wwos::kernel {
             memcpy(reinterpret_cast<void*>(new_va_kernel), reinterpret_cast<void*>(pa + KA_BEGIN), translation_table_kernel::PAGE_SIZE);
             task->pcb.tt->set_page(va, new_pa);
         }
+
+        printf("fork_current_task done, pid={}\n", task->pid);
         
         p_scheduler->add_task(task);
     }
@@ -95,14 +95,14 @@ namespace wwos::kernel {
         pid_counter = 0;
     }
 
-    void create_process(string_view path, uint64_t pid) {
+    void create_process(string_view path, task_info* replacing) {
         // 1. load program
         // 2. add to process list
         auto kernel_stack = pallocator->alloc();
         ttkernel->set_page(kernel_stack, kernel_stack);
         ttkernel->activate();
 
-        pid = pid == ~0ull ? pid_counter++ : pid;
+        uint64_t pid = replacing == nullptr ? pid_counter++ : replacing->pid;
 
         task_info* task = new task_info {
             .pid = pid,
@@ -117,34 +117,29 @@ namespace wwos::kernel {
             }
         };
 
-
-        println("loading program #1");
         auto inode = get_inode(path);
-        println("loading program #2");
         auto inode_size = get_inode_size(inode);
         vector<uint8_t> binary(inode_size);
 
         read_inode(binary.data(), inode, 0, inode_size);
         load_program(*task->pcb.tt, binary);
 
-        p_scheduler->add_task(task);
+        if(replacing != nullptr) {
+            p_scheduler->replace_task(replacing, task);
+        } else {
+            p_scheduler->add_task(task);
+        }
+
+        printf("create_process done, pid={}\n", task->pid);
     }
 
     void replace_current_task(string_view path) {
-        println("replacing current task");
+        printf("replace_current_task path = {}\n", path);
 
         auto task = p_scheduler->get_executing_task();
         wwassert(task != nullptr, "Invalid pid");
 
-        p_scheduler->remove_task(task); 
-        delete task; // TODO: free memory
-
-        println("creating new process");
-
-        create_process(path, task->pid);
-
-        println("new process created");
-        printf("executing task: {:x}\n", uint64_t(p_scheduler->get_executing_task()));
+        create_process(path, task);
 
         wwassert(p_scheduler->get_executing_task() != nullptr, "no executing task");
     }
@@ -154,13 +149,8 @@ namespace wwos::kernel {
         
         wwassert(task != nullptr, "no task to schedule");
 
-        // printf("scheduling task {}\n", task->pid);
-        // printf("pc: {:x}\n", task->pcb.pc);
-
-        set_timeout_interrupt(10000);
-        // printf("activating tt {:x}\n", reinterpret_cast<uint64_t>(task->pcb.tt));
         task->pcb.tt->activate();
-        // printf("activated tt {:x}\n", reinterpret_cast<uint64_t>(task->pcb.tt));
+        set_timeout_interrupt(100000);
         eret_to_unprivileged(
             task->pcb.pc, task->pcb.usp, task->pcb.ksp, task->pcb.state, 
             task->pcb.has_return_value, task->pcb.return_value);
@@ -176,7 +166,6 @@ namespace wwos::kernel {
     }
 
     [[noreturn]] void on_timeout() {
-        println("timeout");
         schedule();
     }
 

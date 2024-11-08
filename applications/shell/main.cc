@@ -274,18 +274,8 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
 }
 
 int main() {
-    while(true);
-
     wwos::println("WWOS Shell!");
 
-    // wwos::int64_t root = wwos::open("/");
-    // wwos::printf("Root: {}\n", root);
-
-    // auto children = wwos::get_directory_children(root);
-    
-    // for(auto& child: children) {
-    //     wwos::printf("Child: {} {}\n", child.first, child.second);
-    // }
 
     while(true) {
         wwos::print("> ");

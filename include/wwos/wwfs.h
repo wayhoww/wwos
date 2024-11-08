@@ -60,20 +60,20 @@ struct meta_t {
 
 class file_system_hardware {
 public:
-    virtual void read(size_t block, void* buffer) = 0;
-    virtual void write(size_t block, const void* buffer) = 0;
-    virtual size_t size() const = 0;
-    virtual size_t get_block_size() const = 0;
+    void read(size_t block, void* buffer);
+    void write(size_t block, const void* buffer);
+    size_t size() const;
+    size_t get_block_size() const;
 };
 
 class file_system_hardware_memory: public file_system_hardware {
 public:
     file_system_hardware_memory(void* memory, size_t block_size, size_t block_count);
 
-    void read(size_t block, void* buffer) override;
-    void write(size_t block, const void* buffer) override;
-    size_t size() const override { return block_count * block_size; }
-    size_t get_block_size() const override { return block_size; }
+    void read(size_t block, void* buffer);
+    void write(size_t block, const void* buffer);
+    size_t size() const { return block_count * block_size; }
+    size_t get_block_size() const { return block_size; }
     
 private:
 
@@ -84,50 +84,50 @@ private:
 
 class file_system {
 public:
-    virtual void initialize() = 0;
+    void initialize();
 
-    virtual void format(meta_t meta) = 0;
+    void format(meta_t meta);
 
-    virtual int64_t get_root() = 0;
+    int64_t get_root();
 
-    virtual int64_t create(int64_t parent, string_view name, inode_type type) = 0;
+    int64_t create(int64_t parent, string_view name, inode_type type);
 
-    virtual vector<pair<string, int64_t>> get_children(int64_t inode_id) = 0;
+    vector<pair<string, int64_t>> get_children(int64_t inode_id);
 
-    virtual inode_type get_inode_type(int64_t id) = 0;
+    inode_type get_inode_type(int64_t id);
 
-    virtual size_t get_inode_size(int64_t id) = 0;
+    size_t get_inode_size(int64_t id);
 
-    virtual size_t read_data(int64_t id, size_t offset, size_t size, void* buffer) = 0;
+    size_t read_data(int64_t id, size_t offset, size_t size, void* buffer);
 
-    virtual size_t write_data(int64_t id, size_t offset, size_t size, const void* buffer) = 0;
+    size_t write_data(int64_t id, size_t offset, size_t size, const void* buffer);
 
-    virtual meta_t get_meta() const = 0;
+    meta_t get_meta() const;
 };
 
 class basic_file_system: public file_system {
 public:
-    basic_file_system(file_system_hardware* hw);
+    basic_file_system(file_system_hardware_memory* hw);
 
-    void initialize() override;
+    void initialize();
 
-    void format(meta_t meta) override;
+    void format(meta_t meta);
 
-    int64_t get_root() override;
+    int64_t get_root();
 
-    int64_t create(int64_t parent, string_view name, inode_type type) override;
+    int64_t create(int64_t parent, string_view name, inode_type type);
 
-    vector<pair<string, int64_t>> get_children(int64_t inode_id) override;
+    vector<pair<string, int64_t>> get_children(int64_t inode_id);
 
-    inode_type get_inode_type(int64_t id) override;
+    inode_type get_inode_type(int64_t id);
 
-    size_t get_inode_size(int64_t id) override;
+    size_t get_inode_size(int64_t id);
 
-    size_t read_data(int64_t id, size_t offset, size_t size, void* buffer) override;
+    size_t read_data(int64_t id, size_t offset, size_t size, void* buffer);
 
-    size_t write_data(int64_t id, size_t offset, size_t size, const void* buffer) override;
+    size_t write_data(int64_t id, size_t offset, size_t size, const void* buffer);
 
-    meta_t get_meta() const  override { return meta; }
+    meta_t get_meta() const  { return meta; }
 
 protected:
     template <bool write=false>
@@ -163,13 +163,10 @@ protected:
     size_t bid_data;
 
     meta_t meta;
-    file_system_hardware* hw;
+    file_system_hardware_memory* hw;
 
     bool initialized = false;
 };
-
-#undef virtual
-#undef override
 
 
 }
