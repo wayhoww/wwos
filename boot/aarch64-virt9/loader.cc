@@ -10,10 +10,6 @@ extern wwos::uint64_t memdisk_blob_end_mark;
 extern "C" void loader_main();
 extern wwos::uint64_t _start;
 
-extern "C" void wwos_aarch64_handle_exception() {
-    wwos::println("exception detected");
-}
-
 namespace wwos::kernel {
     void kputchar(char c) {
         volatile char* uart = reinterpret_cast<char*>(0x09000000);
@@ -68,11 +64,6 @@ void setup_translation_table() {
 }
 
 void main() {
-    asm volatile(R"(
-        ADR x0, aarch64_exception_vector_table;
-        MSR VBAR_EL1, x0;
-    )");
-
     setup_translation_table();
 
     uint64_t kernel_space_begin = KA_BEGIN;

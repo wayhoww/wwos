@@ -17,6 +17,20 @@ namespace wwos {
         }
     }
 
+    void kprint_int(int x) {
+        if(x == 0) {
+            kputchar('0');
+        } else {
+            char buf[32];
+            int i = 0;
+            while(x) {
+                buf[i++] = '0' + x % 10;
+                x /= 10;
+            }
+            while(i--) kputchar(buf[i]);
+        }
+    }
+
     void trigger_mark(string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
 
@@ -44,7 +58,10 @@ namespace wwos {
 
     void trigger_assert(string_view expr, string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
-
+#ifdef WWOS_KERNEL
+#define print kprint
+#define print_int kprint_int
+#endif
         print("assertion failed at ");
         print(file);
         print(":");
@@ -56,7 +73,10 @@ namespace wwos {
         print("    info: ");
         print(msg);
         print("\n");
-
+#ifdef WWOS_KERNEL
+#undef print
+#undef print_int
+#endif
         while (true);
     }
 }

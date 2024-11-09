@@ -30,6 +30,14 @@ public:
         return true;
     }
 
+    bool get_front(T& out) const {
+        if(m_size == 0) {
+            return false;
+        }
+        out = m_data[m_head];
+        return true;
+    }
+
     void clear() {
         m_head = 0;
         m_tail = 0;

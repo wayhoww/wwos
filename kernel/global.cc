@@ -1,4 +1,5 @@
 #include "drivers/pl011.h"
+#include "filesystem.h"
 #include "memory.h"
 #include "wwos/alloc.h"
 #include "wwos/stdint.h"
@@ -11,6 +12,8 @@ physical_memory_page_allocator* pallocator = nullptr;
 translation_table_kernel* ttkernel = nullptr;
 
 pl011_driver* g_uart = nullptr;
+
+shared_file_node* kernel_logging_sfn = nullptr;
 
 }
 

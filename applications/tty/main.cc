@@ -40,13 +40,15 @@ struct tty_info {
     wwos::int64_t pid;
     wwos::int64_t fd_stdin;
     wwos::int64_t fd_stdout;
-    wwos::list<wwos::uint8_t> buffer_stdin;
-    wwos::list<wwos::uint8_t> buffer_stdout;
+    wwos::cycle_queue<wwos::uint8_t> buffer_stdin  { 1 << 20 };
+    wwos::cycle_queue<wwos::uint8_t> buffer_stdout { 1 << 20 };
     wwos::vector<wwos::uint8_t> buffer_line;
     output_proxy proxy;
 };
 
-tty_info* ttys[4];
+constexpr wwos::size_t N_TTYS = 4;
+tty_info* ttys[N_TTYS + 1];
+wwos::size_t BUFFER_SIZE = 1 << 20;
 
 wwos::string tty_getline(output_proxy& proxy) {
     wwos::string out;
@@ -74,7 +76,28 @@ void tty_print(output_proxy& proxy, wwos::string_view s) {
     }
 }
 
+void initialize_tty_log() {
+    if(ttys[N_TTYS] != nullptr) {
+        return;
+    }
+
+    ttys[N_TTYS] = new tty_info {
+        .pid = 0,
+        .fd_stdin = -1,
+        .fd_stdout = wwos::open("/kernel/log", wwos::fd_mode::READONLY),
+        .buffer_stdin = wwos::cycle_queue<wwos::uint8_t>(BUFFER_SIZE),
+        .buffer_stdout = wwos::cycle_queue<wwos::uint8_t>(BUFFER_SIZE)
+    };
+
+    wwassert(ttys[N_TTYS]->fd_stdout >= 0, "Failed to open fifo");
+}
+
 void initialize_tty(wwos::size_t i) {
+    if(i == N_TTYS) {
+        initialize_tty_log();
+        return;
+    }
+
     if(ttys[i] != nullptr) {
         return;
     }
@@ -93,8 +116,8 @@ void initialize_tty(wwos::size_t i) {
         .pid = pid,
         .fd_stdin = wwos::open(wwos::format("/proc/{}/fifo/stdin", pid), wwos::fd_mode::WRITEONLY),
         .fd_stdout = wwos::open(wwos::format("/proc/{}/fifo/stdout", pid), wwos::fd_mode::READONLY),
-        .buffer_stdin = wwos::list<wwos::uint8_t>(),
-        .buffer_stdout = wwos::list<wwos::uint8_t>()
+        .buffer_stdin = wwos::cycle_queue<wwos::uint8_t>(BUFFER_SIZE),
+        .buffer_stdout = wwos::cycle_queue<wwos::uint8_t>(BUFFER_SIZE)
     };
 
     wwassert(ttys[i]->fd_stdin >= 0, "Failed to open fifo");
@@ -140,7 +163,7 @@ void command_mode(output_proxy& proxy) {
         tty_print(proxy, "vtty> ");
         auto line = tty_getline(proxy);
         if(line == "log") {
-            tty_print(proxy, "Not implemented\n");
+            switch_to_tty(N_TTYS);
             return;
         } else if(line == "ret") {
             return;
@@ -174,12 +197,14 @@ bool is_normal_characters(wwos::int32_t c) {
 }
 
 int main() {
-    for(wwos::size_t i = 0; i < 4; i++) {
+    for(wwos::size_t i = 0; i < N_TTYS + 1; i++) {
         ttys[i] = nullptr;
     }
 
     current_tty = -1;
+    switch_to_tty(N_TTYS);
     switch_to_tty(0);
+    clear_screen();
 
     output_proxy command_mode_proxy;
     
@@ -199,37 +224,41 @@ int main() {
 
         auto p_tty = ttys[current_tty];
 
-        if(is_normal_characters(c) || c == 13) {
-            if(c == 13) c = 10;
+        if(current_tty != N_TTYS) {
+            if(is_normal_characters(c) || c == 13) {
+                if(c == 13) c = 10;
 
-            p_tty->buffer_line.push_back(c);
-            p_tty->proxy.write(c);
-         
+                p_tty->buffer_line.push_back(c);
+                p_tty->proxy.write(c);
+            
 
-            if(c == 10) {
-                for(auto c: p_tty->buffer_line) {
-                    p_tty->buffer_stdin.push_back(c);
+                if(c == 10) {
+                    for(auto c: p_tty->buffer_line) {
+                        if(p_tty->buffer_stdin.full()) {
+                            wwos::uint8_t buf;
+                            p_tty->buffer_stdin.pop(buf);
+                        }
+                        p_tty->buffer_stdin.push(c);
+                    }
+                    p_tty->buffer_line.clear();
                 }
-                p_tty->buffer_line.clear();
+            }
+            
+            while(true) {
+                wwos::uint8_t bufc;
+                bool succ = p_tty->buffer_stdin.get_front(bufc);
+                if(!succ) {
+                    break;
+                }
+                auto size = wwos::write(p_tty->fd_stdin, &bufc, 1);
+                if(size <= 0) {
+                    break;
+                }
+                p_tty->buffer_stdin.pop(bufc);
             }
         }
-        
-        while(true) {
-            wwos::uint8_t bufc;
-            bool succ = p_tty->buffer_stdin.get_front(bufc);
-            if(!succ) {
-                break;
-            }
-            auto size = wwos::write(p_tty->fd_stdin, &bufc, 1);
-            if(size <= 0) {
-                break;
-            }
-            p_tty->buffer_stdin.pop_front(bufc);
-        }
 
-        // cache stdout
-
-        for(wwos::size_t i = 0; i < sizeof(ttys) / sizeof(ttys[0]); i++) {
+        for(wwos::size_t i = 0; i < N_TTYS + 1; i++) {
             auto i_tty = ttys[i];
             if(i_tty == nullptr) {
                 continue;
@@ -240,7 +269,11 @@ int main() {
                 auto size = wwos::read(i_tty->fd_stdout, (wwos::uint8_t*)buffer, sizeof(buffer));
                 
                 for(wwos::int64_t i = 0; i < size; i++) {
-                    p_tty->buffer_stdout.push_back(buffer[i]);
+                    if(i_tty->buffer_stdout.full()) {
+                        wwos::uint8_t buf;
+                        i_tty->buffer_stdout.pop(buf);
+                    }
+                    i_tty->buffer_stdout.push(buffer[i]);
                 }
 
                 if(size < sizeof(buffer)) {
@@ -256,7 +289,7 @@ int main() {
                 break;
             }
             p_tty->proxy.write(bufc);
-            p_tty->buffer_stdout.pop_front(bufc);
+            p_tty->buffer_stdout.pop(bufc);
         }
     }
     return 0;

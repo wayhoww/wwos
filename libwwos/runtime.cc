@@ -66,11 +66,7 @@ extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
     if(fd_stdin < 0 || fd_stdout < 0) {
         wwlog("Failed to open stdin/stdout");
     }
-
-    wwfmtlog("pid={}, stdin = {}, stdout = {}", wwos::get_pid(), fd_stdin, fd_stdout);
-
     wwassert(fd_stdin == 0 && fd_stdout == 1, "Invalid file descriptor");
-
     main();
 }
 

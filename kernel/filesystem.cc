@@ -16,7 +16,7 @@
 #include "wwos/wwfs.h"
 
 namespace wwos::kernel {
-    constexpr size_t FIFO_SIZE = 4000;
+    constexpr size_t FIFO_SIZE = 1 << 20; // 1 MB buffer
 
     struct fifo_file {
         fifo_file(): fifo(cycle_queue<uint8_t>(FIFO_SIZE)) {}
@@ -131,7 +131,6 @@ namespace wwos::kernel {
         } 
 
         return fs->write_data(node->inode, offset, size, buffer);
-
     }
 
     size_t get_shared_node_size(shared_file_node* node) {

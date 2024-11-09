@@ -50,3 +50,7 @@ endif
 ifeq ($(LOG),1)
     CCFLAGS += -DWWOS_LOG
 endif
+
+ifeq ($(DIRECT_LOGGING),1)
+	CCFLAGS += -DWWOS_DIRECT_LOGGING
+endif

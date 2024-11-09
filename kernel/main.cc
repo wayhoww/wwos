@@ -12,6 +12,7 @@
 #include "memory.h"
 #include "global.h"
 #include "arch.h"
+#include "wwos/syscall.h"
 
 
 
@@ -47,6 +48,15 @@ translation_table_kernel* initialize_memory() {
     return &tt;
 }
 
+void initialize_logging() {
+    create_shared_file_node("/kernel", fd_type::DIRECTORY);
+    create_shared_file_node("/kernel/log", fd_type::FIFO);
+
+    auto sfn = open_shared_file_node(0, "/kernel/log", fd_mode::WRITEONLY);
+    wwassert(sfn, "failed to open file");
+    kernel_logging_sfn = sfn;
+}
+
 
 void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
     ttkernel = initialize_memory();
@@ -73,6 +83,7 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
     initialize_filesystem(reinterpret_cast<void*>(pa_memdisk_begin + KA_BEGIN), pa_memdisk_end - pa_memdisk_begin);
     initialize_process_subsystem();
     initialize_timer();
+    initialize_logging();
 
     create_process("/app/init");
 
