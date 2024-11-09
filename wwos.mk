@@ -36,7 +36,7 @@ SIZE_PREKERNEL = 0x2000000 # 32 MB
 DEFINES = -DPA_ENTRY=$(PA_ENTRY) -DKA_BEGIN=$(KA_BEGIN) -DSIZE_PREKERNEL=$(SIZE_PREKERNEL) -DPA_UART_LOGGING=$(PA_UART_LOGGING)
 
 
-CCFLAGS = -Iinclude -Wall -Werror -O0 -g -mgeneral-regs-only -ffreestanding -nostdlib -nostdinc -nostdinc++ -std=c++17 -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -fno-rtti -fPIC $(DEFINES) 
+CCFLAGS = -Iinclude -Wall -Werror -O2 -mgeneral-regs-only -ffreestanding -nostdlib -nostdinc -nostdinc++ -std=c++17 -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -fno-rtti $(DEFINES) 
 ASFLAGS = 
 
 ifneq ($(GNU),1)

@@ -1,6 +1,6 @@
 ENTRY(_start)
 SECTIONS {
-    . = PA_ENTRY + SIZE_PREKERNEL;
+    . = KA_BEGIN + PA_ENTRY + SIZE_PREKERNEL;
     wwos_kernel_begin_mark = .;
 
     .text.wwos.start : { *(.text.wwos.start)         }
@@ -18,21 +18,10 @@ SECTIONS {
     .symtab         : { *(.symtab)       }
     .symtab_shndx   : { *(.symtab_shndx) }
     
-    .debug_abbrev     : { *(.debug_abbrev)     }
-    .debug_info       : { *(.debug_info)       }
-    .debug_rnglists   : { *(.debug_rnglists)   }
-    .debug_str        : { *(.debug_str)        }
-    .debug_addr       : { *(.debug_addr)       }
-    .comment          : { *(.comment)          }
-    .debug_frame      : { *(.debug_frame)      }
-    .debug_line       : { *(.debug_line)       }
-    .debug_line_str   : { *(.debug_line_str)   }
-    .debug_loclists   : { *(.debug_loclists)   }
-    
     .other : { *(*) }
     
     . = ALIGN(4096);
-    . += 0x10000; /* 4kB of stack memory */
+    . += 0x200000; /* 2MB of stack memory */
     stack_top = .;
 
     . = ALIGN(8);
