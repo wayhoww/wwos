@@ -29,15 +29,15 @@ int main() {
     fs.format(meta);
     fs.initialize();
 
-    auto f_usr = fs.create(fs.get_root(), "usr", inode_type::directory);
-    auto f_bin = fs.create(fs.get_root(), "bin", inode_type::directory);
-    auto f_etc = fs.create(fs.get_root(), "etc", inode_type::directory);
-    auto f_home = fs.create(fs.get_root(), "home", inode_type::directory);
+    auto f_usr = fs.create(fs.get_root(), "usr", inode_type::DIRECTORY);
+    auto f_bin = fs.create(fs.get_root(), "bin", inode_type::DIRECTORY);
+    auto f_etc = fs.create(fs.get_root(), "etc", inode_type::DIRECTORY);
+    auto f_home = fs.create(fs.get_root(), "home", inode_type::DIRECTORY);
     
-    auto f_home_weihaow = fs.create(f_home, "weihaow", inode_type::directory);
-    auto f_etc_passwd = fs.create(f_etc, "passwd", inode_type::file);
-    auto f_etc_group = fs.create(f_etc, "group", inode_type::file);
-    auto f_etc_shadow = fs.create(f_etc, "shadow", inode_type::file);
+    auto f_home_weihaow = fs.create(f_home, "weihaow", inode_type::DIRECTORY);
+    auto f_etc_passwd = fs.create(f_etc, "passwd", inode_type::FILE);
+    auto f_etc_group = fs.create(f_etc, "group", inode_type::FILE);
+    auto f_etc_shadow = fs.create(f_etc, "shadow", inode_type::FILE);
 
     // write a small file to passwd
     std::string passwd = "root:x:0:0:root:/root:/bin/bash\n";
@@ -71,7 +71,7 @@ int main() {
 
     // write part of a file
 
-    auto fs_home_weihaow_file = fs.create(f_home_weihaow, "file", inode_type::file);
+    auto fs_home_weihaow_file = fs.create(f_home_weihaow, "file", inode_type::FILE);
     std::vector<uint8_t> longfile_3(545);
     std::vector<uint8_t> longfile_4(2412);
     std::vector<uint8_t> longfile_5(123);

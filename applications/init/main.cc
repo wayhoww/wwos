@@ -20,7 +20,14 @@ void printhex_memoryless(wwos::uint64_t x) {
 
 int main() {
     
-    wwos::uint32_t pid = wwos::fork();
+    wwos::uint32_t pid;
+
+    pid = wwos::fork();
+    if(pid == 0) {
+        wwos::exec("/app/tty");
+    }
+
+    pid = wwos::fork();
     if(pid == 0) {
         wwos::exec("/app/shell");
     }

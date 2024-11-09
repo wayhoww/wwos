@@ -47,7 +47,7 @@ void dump_recursive(basic_file_system& fs, uint64_t inode_id, int depth) {
             std::cout << "    ";
         }
         std::cout << name.c_str() << std::endl;
-        if(fs.get_inode_type(id) == inode_type::directory) {
+        if(fs.get_inode_type(id) == inode_type::DIRECTORY) {
             dump_recursive(fs, id, depth + 1);
         }
     }
@@ -104,14 +104,14 @@ void add_file(const std::string& filename, const std::string& name, const std::s
             if(existing) {
                 fs.write_data(parent, 0, file_to_add.size(), file_to_add.data());
             } else {
-                auto inode_id = fs.create(parent, name_piece.c_str(), inode_type::file);
+                auto inode_id = fs.create(parent, name_piece.c_str(), inode_type::FILE);
                 fs.initialize();
                 fs.write_data(inode_id, 0, file_to_add.size(), file_to_add.data());
                 fs.initialize();
             }
         } else {
             if(!existing) {
-                parent = fs.create(parent, name_piece.c_str(), inode_type::directory);
+                parent = fs.create(parent, name_piece.c_str(), inode_type::DIRECTORY);
             } 
         }
 

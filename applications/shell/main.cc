@@ -3,6 +3,7 @@
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string.h"
+#include "wwos/string_view.h"
 #include "wwos/syscall.h"
 #include "wwos/vector.h"
 
@@ -186,6 +187,11 @@ private:
     wwos::size_t m_pos = 0;
 };
 
+class io_proxy {
+
+
+};
+
 void dump_command(command_invocation cmd) {
     wwos::printf("Command: {}\n", cmd.command);
     wwos::println("Args:");
@@ -226,20 +232,42 @@ void command_ls(const wwos::vector<wwos::string>& args) {
         return;
     }
 
-    wwos::int64_t fid = wwos::open(args[0]);
-    if(fid < 0) {
+    auto fd = wwos::open(args[0], wwos::fd_mode::READONLY);
+    if(fd < 0) {
         wwos::printf("Failed to open {}\n", args[0]);
         return;
     }
-    auto children = wwos::get_directory_children(fid);
-    if(children.size() == 0) {
-        wwos::printf("No file or directories in {}\n", args[0]);
+
+    wwos::vector<wwos::string> children;
+    auto ret = wwos::get_children(fd, children);
+    if(ret < 0) {
+        wwos::printf("Failed to get children of {}\n", args[0]);
+        wwos::close(fd);
         return;
-    } else {
-        for(auto& child: children) {
-            wwos::printf("{}\t", child.first);
+    }
+    if(children.size() == 0) {
+        wwos::println("No children");
+        return;
+    }
+    for(auto& child: children) {
+        auto children_path = join_path(args[0], child);
+        auto children_fd = wwos::open(children_path, wwos::fd_mode::READONLY);
+        if(children_fd < 0) {
+            wwos::printf("Failed to open {}\n", children_path);
+            return;
         }
-        wwos::println("");
+        wwos::fd_stat stat;
+        auto ret = wwos::stat(children_fd, &stat);
+        if(ret < 0) {
+            wwos::printf("Failed to stat {}\n", children_path);
+            wwos::close(children_fd);
+            return;
+        }
+
+        wwos::string type = stat.type == wwos::fd_type::DIRECTORY ? "dir" : "file";
+        wwos::string size = wwos::to_string(stat.size);
+
+        wwos::printf("{:4}  {:12} {:0l} \n", type, size, child);
     }
 }
 
@@ -249,25 +277,13 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
         return;
     }
 
-    // find the last '/', split
-    wwos::string path = args[0];
-    wwos::size_t last_slash = path.find_last_of('/');
-    if(last_slash == wwos::string::npos) {
+    if(args[0].size() == 0) {
         wwos::println("Invalid path");
         return;
     }
 
-    wwos::string parent = path.substr(0, last_slash + 1);
-    wwos::string name = path.substr(last_slash + 1, path.size() - last_slash - 1);
-
-    wwos::int64_t parent_fid = wwos::open(parent);
-    if(parent_fid < 0) {
-        wwos::printf("Failed to open {}\n", parent);
-        return;
-    }
-
-    wwos::int64_t new_fid = wwos::make_directory(parent_fid, name);
-    if(new_fid < 0) {
+    auto rst = wwos::create(args[0], wwos::fd_type::DIRECTORY);
+    if(rst < 0) {
         wwos::printf("Failed to create {}\n", args[0]);
         return;
     }
@@ -275,6 +291,65 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
 
 int main() {
     wwos::println("WWOS Shell!");
+
+    char buffer[] = "Hello, World To FIFO!";
+    int ret = wwos::write(1, (wwos::uint8_t*)buffer, sizeof(buffer));
+
+    wwos::printf("write ret = {}\n", ret);
+
+    while(true);
+
+    // auto semaphore = wwos::semaphore_create(0);
+    // for(wwos::size_t i = 0; i < 10; i++) {
+    //     wwos::semaphore_signal_after_microseconds(semaphore, 1000000);
+    //     wwos::semaphore_wait(semaphore);
+    //     wwos::putchar('.');
+    // }
+
+    // auto ret = wwos::create("/abc.txt", wwos::fd_type::FILE);
+    // if(ret < 0) {
+    //     wwos::println("Failed to create /abc.txt");
+    // }
+
+    // auto fd = wwos::open("/abc.txt", wwos::fd_mode::WRITEONLY);
+    // if(fd < 0) {
+    //     wwos::println("Failed to open /abc.txt");
+    // }
+
+    // wwos::string data = "Hello, World!";
+    // ret = wwos::write(fd, data.data(), data.size());
+    // if(ret < 0) {
+    //     wwos::println("Failed to write /abc.txt");
+    // }
+
+    // wwos::close(fd);
+
+    // fd = wwos::open("/abc.txt", wwos::fd_mode::READONLY);
+    // if(fd < 0) {
+    //     wwos::println("Failed to open /abc.txt");
+    // }
+
+    // wwos::fd_stat stat;
+    // ret = wwos::stat(fd, &stat);
+    // if(ret < 0) {
+    //     wwos::println("Failed to stat /abc.txt");
+    // }
+
+    // // int pid = wwos::fork();
+
+    // // wwos::printf("pid={}\n", pid);
+    // wwos::vector<wwos::uint8_t> buffer(stat.size);
+    // ret = wwos::read(fd, buffer.data(), buffer.size());
+    // if(ret < 0) {
+    //     wwos::println("Failed to read /abc.txt");
+    // }
+
+    // wwos::string_view view((const char*) buffer.data(), buffer.size());
+    // wwos::println(view);
+
+    // wwos::close(fd);
+
+
 
 
     while(true) {

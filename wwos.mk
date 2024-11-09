@@ -40,8 +40,13 @@ CCFLAGS = -Iinclude -Wall -Werror -O0 -g -mgeneral-regs-only -ffreestanding -nos
 ASFLAGS = 
 
 ifneq ($(GNU),1)
-	CCFLAGS += --target=aarch64-elf
-	ASFLAGS += --target=aarch64-elf
+    CCFLAGS += --target=aarch64-elf
+    ASFLAGS += --target=aarch64-elf
 else
-	CCFLAGS += 
+    $(error GNU compiler support is deprecated)
+    CCFLAGS += 
+endif
+
+ifeq ($(LOG),1)
+    CCFLAGS += -DWWOS_LOG
 endif

@@ -3,6 +3,7 @@
 
 #include "aarch64/memory.h"
 #include "aarch64/interrupt.h"
+#include "aarch64/time.h"
 
 
 #endif

@@ -192,6 +192,15 @@ public:
         m_size--;
     }
 
+    iterator find(const T& value) {
+        for(size_t i = 0; i < m_size; i++) {
+            if(m_data[i] == value) {
+                return iterator(m_data + i);
+            }
+        }
+        return end();
+    }
+
 protected:
 
     void expand() {

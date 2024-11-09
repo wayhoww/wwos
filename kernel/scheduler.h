@@ -1,8 +1,6 @@
 #ifndef _WWOS_KERNEL_SCHEDULER_H
 #define _WWOS_KERNEL_SCHEDULER_H
 
-#include "semaphore.h"
-#include "wwos/vector.h"
 #include "wwos/avl.h"
 
 #include "process.h"

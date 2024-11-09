@@ -2,7 +2,7 @@ include wwos.mk
 
 DEFINES += -DWWOS_KERNEL
 
-.PHONY: all tools run clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app dev/qemu_tracer/qemu_tracer.so qemu.log.sym
+.PHONY: all tools run clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app applications/tty/tty.app dev/qemu_tracer/qemu_tracer.so qemu.log.sym
 
 all: wwos.img tools compile_flags.txt
 
@@ -17,7 +17,7 @@ debug: wwos.img
 
 trace: wwos.img dev/qemu_tracer/qemu_tracer.so
 	# qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -plugin ./dev/qemu_tracer/qemu_tracer.so -d int,in_asm,guest_errors,exec,plugin -D qemu.log
-	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -d int,in_asm,guest_errors,exec -D qemu.log
+	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -d int,in_asm,guest_errors,exec,cpu -D qemu.log
 
 
 test:
@@ -89,16 +89,20 @@ kernel/kernel.img: kernel/kernel.elf
 	$(OBJCOPY) -O binary $< $@
 
 
-memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app
+memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app
 	./tools/wwfs initialize memdisk.wwfs 1024 2048 1024
-	./tools/wwfs add memdisk.wwfs /app/init applications/init/init.app
+	./tools/wwfs add memdisk.wwfs /app/init  applications/init/init.app
 	./tools/wwfs add memdisk.wwfs /app/shell applications/shell/shell.app
+	./tools/wwfs add memdisk.wwfs /app/tty   applications/tty/tty.app
 
 applications/init/init.app:
 	$(MAKE) -C applications/init init.app
 
 applications/shell/shell.app:
 	$(MAKE) -C applications/shell shell.app
+
+applications/tty/tty.app:
+	$(MAKE) -C applications/tty tty.app
 
 dev/qemu_tracer/qemu_tracer.so:
 	$(MAKE) -C dev/qemu_tracer qemu_tracer.so

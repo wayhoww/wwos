@@ -4,29 +4,33 @@
 #include "wwos/pair.h"
 #include "wwos/stdint.h"
 #include "wwos/string_view.h"
+#include "wwos/syscall.h"
 namespace wwos::kernel {
+
+
+struct shared_file_node {
+    int64_t inode;
+    fd_type type;
+    vector<int64_t> readers;
+    vector<int64_t> writers;
+};
+
+// logical
+shared_file_node* open_shared_file_node(uint64_t pid, string_view path, fd_mode mode);
+
+bool close_shared_file_node(uint64_t pid, shared_file_node* sfn);
+
+bool create_shared_file_node(string_view path, fd_type type);
 
 void initialize_filesystem(void* addr, size_t size);
 
-int64_t get_inode(string_view path);
+size_t read_shared_node(void* buffer, shared_file_node* node, size_t offset, size_t size);
 
-size_t read_inode(void* buffer, int64_t id, size_t offset, size_t size);
+size_t write_shared_node(void* buffer, shared_file_node* node, size_t offset, size_t size);
 
-size_t write_inode(void* buffer, int64_t id, size_t offset, size_t size);
+size_t get_shared_node_size(shared_file_node* node);
 
-size_t get_inode_size(int64_t id);
-
-int64_t create_subdirectory(int64_t parent, string_view name);
-
-int64_t create_file(int64_t parent, string_view name);
-
-vector<pair<string, int64_t>> get_children(int64_t parent);
-
-uint64_t get_flattened_children(int64_t parent, uint8_t* buffer, uint64_t size);
-
-bool is_directory(int64_t id);
-
-bool is_file(int64_t id);
+uint64_t get_flattened_children(shared_file_node* node, uint8_t* buffer, uint64_t size);
 
 }
 

@@ -54,6 +54,10 @@ void scheduler::replace_task(task_info* task_to_delete, task_info* task_to_add) 
 }
 
 void scheduler::remove_task(task_info* task) {
+    if(task->pid == 0) {
+        wwassert(false, "pid 0 cannot be removed");
+    }
+
     if(task == executing_task) {
         executing_task = nullptr;
         schedule();
@@ -90,7 +94,7 @@ task_info* scheduler::schedule() {
         return executing_task;
     }
 
-    wwassert(false, "no task to schedule");
+    wwassert(false, "no task to schedule.");
 }
 
 task_info* scheduler::get_executing_task() {

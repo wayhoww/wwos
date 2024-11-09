@@ -22,8 +22,9 @@
 namespace wwos::wwfs {
 
 enum class inode_type {
-    directory,
-    file,
+    DIRECTORY,
+    FILE,
+    FIFO
 };
 
 
@@ -129,11 +130,11 @@ public:
 
     meta_t get_meta() const  { return meta; }
 
+    inode resize_inode(uint64_t inode_id, size_t new_size);
+
 protected:
     template <bool write=false>
     void rw_inode_data_unaligned(const inode& inode, size_t offset, size_t size, void* buffer);
-
-    inode resize_inode(uint64_t inode_id, size_t new_size);
 
     uint64_t get_blockid_of_inode(inode inode, size_t index);
 

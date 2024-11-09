@@ -7,7 +7,7 @@ CCFLAGS += -I../include
 clean:
 	rm -f $(OBJS) libwwos.a libwwos_kernel.a
 
-OBJS = alloc.o assert.o start.o wwfs.o runtime.o string_view.o
+OBJS = alloc.o assert.o start.o wwfs.o runtime.o string_view.o syscall.o
 OBJS_KERNEL = alloc_kernel.o assert_kernel.o wwfs_kernel.o string_view_kernel.o
 
 %.o: %.cc

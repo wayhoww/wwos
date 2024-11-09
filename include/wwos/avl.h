@@ -4,6 +4,7 @@
 
 #include "wwos/algorithm.h"
 #include "wwos/assert.h"
+#include "wwos/vector.h"
 
 
 namespace wwos {
@@ -40,7 +41,7 @@ template <typename T>
 class avl_tree {
 public:
     avl_tree() {}
-    ~avl_tree() {}
+    ~avl_tree() { clear(); }
 
     void insert(const T& data) {
         if(root == nullptr) {
@@ -54,6 +55,7 @@ public:
             }
             update_height_and_rebalance(parent);
         }
+        m_size++;
     }
 
     void remove(avl_node<T>* node) {
@@ -122,6 +124,7 @@ public:
             update_height_and_rebalance(largest_parent);
             delete largest;
         }
+        m_size--;
     }
 
     avl_node<T>* smallest() {
@@ -139,12 +142,60 @@ public:
         return root == nullptr;
     }
 
+    vector<T> items() const {
+        vector<T> result;
+        if(root == nullptr) {
+            return result;
+        }
+        vector<avl_node<T>*> stack;
+        stack.push_back(root);
+        while(stack.size() > 0) {
+            auto current = stack.back();
+            stack.pop_back();
+            result.push_back(current->data);
+            if(current->right != nullptr) {
+                stack.push_back(current->right);
+            }
+            if(current->left != nullptr) {
+                stack.push_back(current->left);
+            }
+        }
+        return result;
+    }
+
+    bool size() const {
+        return m_size;
+    }
+
+    void clear() {
+        while(root != nullptr) {
+            remove(root);
+        }
+    }
+
     int height() const {
         return root == nullptr ? -1 : root->height;
     }
 
+    avl_node<T>* find_exact(const T& data) const {
+        avl_node<T>* current = root;
+        while(current != nullptr) {
+            if(data < current->data) {
+                current = current->left;
+            } else if(current->data < data) {
+                current = current->right;
+            } else {
+                return current;
+            }
+        }
+        return nullptr;
+    }
+
     // return the last node that are less than or equal to data. return it's parent if no such node exists
     avl_node<T>* find(const T& data) const {
+        if(root == nullptr) {
+            return nullptr;
+        }
         avl_node<T>* current = root;
         while(current != nullptr) {
             if(data < current->data) {
@@ -165,8 +216,6 @@ public:
     }
 
 protected:
-    avl_node<T>* root = nullptr;
-
     void update_height_and_rebalance(avl_node<T>* node) {
         while(true) {
             int left_height = node->left == nullptr ? -1 : node->left->height;
@@ -265,6 +314,10 @@ protected:
 
         return p4;
     }
+
+protected:
+    size_t m_size = 0;
+    avl_node<T>* root = nullptr;
 };
 
 };

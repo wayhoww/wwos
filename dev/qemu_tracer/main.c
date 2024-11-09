@@ -10,7 +10,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 
 struct qemu_plugin_register* handle_reg_pc = NULL;
-struct qemu_plugin_register* handle_reg_esr_el1 = NULL;
+struct qemu_plugin_register* handle_reg_sp = NULL;
 
 unsigned long read_register(struct qemu_plugin_register* reg) {
     GByteArray* buf = g_byte_array_new();
@@ -30,9 +30,10 @@ void instruction_executed_callback(unsigned int vcpu_index, void *userdata) {
     }
     
     unsigned long pc = read_register(handle_reg_pc);
+    unsigned long sp = read_register(handle_reg_sp);
     
     char buffer[64];
-    snprintf(buffer, 32, "PC: %lx\n", pc);
+    snprintf(buffer, sizeof(buffer), "PC: %lx  SP: %lx\n", pc, sp);
     qemu_plugin_outs(buffer);
     
 
@@ -55,8 +56,8 @@ void virtual_cpu_init_callback(qemu_plugin_id_t id, unsigned int vcpu_index) {
         if(strcmp(data[i].name, "pc") == 0) {
             handle_reg_pc = data[i].handle;
         }
-        if(strcmp(data[i].name, "ESR_EL1") == 0) {
-            handle_reg_esr_el1 = data[i].handle;
+        if(strcmp(data[i].name, "sp") == 0) {
+            handle_reg_sp = data[i].handle;
         }
     }
 

@@ -29,6 +29,19 @@ namespace wwos {
         print("\n");
     }
 
+
+    void trigger_log(string_view file, int line, string_view msg) {
+        // do not use dynamic memory allocation here
+
+        print("log at ");
+        print(file);
+        print(":");
+        print_int(line);
+        print("    info: ");
+        print(msg);
+        print("\n");
+    }
+
     void trigger_assert(string_view expr, string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
 

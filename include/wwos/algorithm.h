@@ -2,6 +2,8 @@
 #define _WWOS_ALGORITHM_H
 
 #include "stdint.h"
+#include "wwos/string.h"
+#include "wwos/string_view.h"
 
 namespace wwos {
 
@@ -44,6 +46,24 @@ namespace wwos {
 
     inline uint64_t get_bits(uint64_t val, uint64_t begin, uint64_t end) {
         return (val >> begin) & ((1 << (end - begin)) - 1);
+    }
+
+    inline string join_path(string_view a, string_view b) {
+        if(a.size() == 0) {
+            return string(b.data(), b.size());
+        }
+        if(b.size() == 0) {
+            return string(a.data(), a.size());
+        }
+        if(b[0] == '/') {
+            return string(b.data(), b.size());
+        }
+        string result = string(a.data(), a.size());
+        if(result[result.size() - 1] != '/') {
+            result.push_back('/');
+        }
+        result += string(b.data(), b.size());
+        return result;
     }
 }
 

@@ -12,10 +12,10 @@
 #include "../process.h"
 #include "interrupt.h"
 
-namespace wwos::kernel { [[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp); }
+namespace wwos::kernel { [[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp, uint64_t source); }
 
-extern "C" [[noreturn]] void wwos_aarch64_handle_exception(wwos::uint64_t arg0, wwos::uint64_t arg1, wwos::uint64_t p_sp) {
-    wwos::kernel::internal_wwos_aarch64_handle_exception(arg0, arg1, p_sp);
+extern "C" [[noreturn]] void wwos_aarch64_handle_exception(wwos::uint64_t arg0, wwos::uint64_t arg1, wwos::uint64_t p_sp, wwos::uint64_t source) {
+    wwos::kernel::internal_wwos_aarch64_handle_exception(arg0, arg1, p_sp, source);
 }
 
 namespace wwos::kernel {
@@ -248,19 +248,21 @@ void disable_irq() {
 
 constexpr size_t TIMER_IRQ = 30;
 
-[[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp) {
+[[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp, uint64_t source) {
     save_process_info(p_sp);
 
     auto ec_bits = get_ec_bits();
 
     int64_t interrupt_id = 1023;
 
-    if(g_interrupt_controller && ((interrupt_id = g_interrupt_controller->get_interrupt_id()) != 1023)) {
-        if(interrupt_id == TIMER_IRQ) {
+    if(source % 4 == 1) {
+        if(g_interrupt_controller && ((interrupt_id = g_interrupt_controller->get_interrupt_id()) != 1023)) {
             g_interrupt_controller->finish_interrupt(interrupt_id);
-            on_timeout();
-        } else {
-            wwassert(false, "Unknown interrupt");
+            if(interrupt_id == TIMER_IRQ) {
+                on_timeout();
+            } else {
+                wwassert(false, "Unknown interrupt");
+            }
         }
     } else {
         if(ec_bits == 0b000000) {
@@ -283,6 +285,10 @@ constexpr size_t TIMER_IRQ = 30;
 
     auto& current_task = get_current_task();
     current_task.pcb.tt->activate();
+
+    // wwfmtlog("ret?={}, ret_value={}", current_task.pcb.has_return_value, current_task.pcb.return_value);
+    // wwfmtlog("eret to unprivileged. pid={}, pc={:x} usp={:x}", current_task.pid, current_task.pcb.pc, current_task.pcb.usp);
+
     eret_to_unprivileged(current_task.pcb.pc, current_task.pcb.usp, current_task.pcb.ksp, current_task.pcb.state, current_task.pcb.has_return_value, current_task.pcb.return_value);
 }
 

@@ -31,7 +31,7 @@ SECTIONS {
     
     .other : { *(*) }
     
-    . = ALIGN(8);
+    . = ALIGN(4096);
     . += 0x10000; /* 4kB of stack memory */
     stack_top = .;
 

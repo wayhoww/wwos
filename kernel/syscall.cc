@@ -18,73 +18,113 @@ namespace wwos::kernel {
                 get_current_task().pcb.set_return_value(kgetchar());
                 break;
 
-            case syscall_id::ALLOC:
-                kallocate_page(arg);
-                break;
-                
-            case syscall_id::FORK:
-                fork_current_task();
-                break;
-            case syscall_id::EXEC:
-                replace_current_task(string_view(reinterpret_cast<const char*>(arg)));
-                break;
-            case syscall_id::SLEEP:
-                schedule();
-                break;
-            case syscall_id::GET_PID:
-            {
-                auto current_task = get_current_task();
-                current_task.pcb.set_return_value(current_task.pid);
-                break;
-            }
-            case syscall_id::OPEN_FILE_OR_DIRECTORY:
-            {
-                const char* path = reinterpret_cast<const char*>(arg);
-                auto fid = get_inode(string_view(path));
-                get_current_task().pcb.set_return_value(fid);
-                break;
-            }
-            case syscall_id::CREATE_DIRECTORY:
-            {
-                int64_t parent = *reinterpret_cast<int64_t*>(arg + 0);
-                const char* name = *reinterpret_cast<const char**>(arg + 8);
-                auto fid = create_subdirectory(parent, string_view(name));
-                get_current_task().pcb.set_return_value(fid);
-                break;
-            }
-            case syscall_id::CREATE_FILE:
-            {
-                int64_t parent = *reinterpret_cast<int64_t*>(arg + 0);
-                const char* name = *reinterpret_cast<const char**>(arg + 8);
-                auto fid = create_file(parent, string_view(name));
-                get_current_task().pcb.set_return_value(fid);
-                break;
-            }
-            case syscall_id::LIST_DIRECTORY_CHILDREN:
-            {
-                int64_t parent = *reinterpret_cast<int64_t*>(arg + 0);
-                uint8_t* buffer = *reinterpret_cast<uint8_t**>(arg + 8);
-                uint64_t size = *reinterpret_cast<uint64_t*>(arg + 16);
-
-                if(parent < 0) {
-                    get_current_task().pcb.set_return_value(-1);
-                    break;
-                }
-
-                if(is_file(parent)) {
-                    get_current_task().pcb.set_return_value(-1);
-                    break;
-                }
-
-                auto children = get_children(parent);
-                auto ret = get_flattened_children(parent, buffer, size);
-                get_current_task().pcb.set_return_value(ret);
+        case syscall_id::ALLOC:
+            kallocate_page(arg);
+            break;
+            
+        case syscall_id::FORK:
+            fork_current_task();
+            break;
+        case syscall_id::EXEC:
+            replace_current_task(string_view(reinterpret_cast<const char*>(arg)));
+            break;
+        case syscall_id::SEMAPHORE_CREATE:
+            get_current_task().pcb.set_return_value(create_semaphore(arg));
+            break;
+        case syscall_id::SEMAPHORE_DESTROY:
+            get_current_task().pcb.set_return_value(delete_semaphore(arg));
+            break;
+        case syscall_id::SEMAPHORE_SIGNAL:
+            current_task_signal_semaphore(arg);
+            break;
+        case syscall_id::SEMAPHORE_SIGNAL_AFTER_MICROSECONDS: 
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            current_task_signal_semaphore_after_microseconds(params[0], params[1]);
+            break;    
+        }
+        case syscall_id::SEMAPHORE_WAIT:
+            current_task_wait_semaphore(arg);
+            break;
+        case syscall_id::GET_PID:
+        {
+            auto& current_task = get_current_task();
+            wwfmtlog("pid = {}\n", current_task.pid);
+            current_task.pcb.set_return_value(current_task.pid);
+            break;
+        }
+        case syscall_id::FD_OPEN:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[0] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
                 break;
             }
-
-            default:
-                wwassert(false, "Unknown syscall id");
+            current_task_open(string_view(reinterpret_cast<const char*>(params[0])), static_cast<fd_mode>(params[1]));
+            break;
+        }
+        case syscall_id::FD_CLOSE:
+            current_task_close(arg);
+            break;
+        case syscall_id::FD_CREATE:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[0] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
                 break;
+            }
+            current_task_create(string_view(reinterpret_cast<const char*>(params[0])), static_cast<fd_type>(params[1]));
+            break;
+        }
+        case syscall_id::FD_CHILDREN:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[1] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
+                break;
+            }
+            current_task_get_children(params[0], reinterpret_cast<char*>(params[1]), params[2]);
+            break;
+        }
+        case syscall_id::FD_READ:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[1] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
+                break;
+            }
+            current_task_read(params[0], reinterpret_cast<uint8_t*>(params[1]), params[2]);
+            break;
+        }
+        case syscall_id::FD_WRITE:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[1] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
+                break;
+            }
+            current_task_write(params[0], reinterpret_cast<uint8_t*>(params[1]), params[2]);
+            break;
+        }
+        case syscall_id::FD_SEEK:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            current_task_seek(params[0], params[1]);
+            break;
+        }
+        case syscall_id::FD_STAT:
+        {
+            uint64_t* params = reinterpret_cast<uint64_t*>(arg);
+            if(params[1] >= KA_BEGIN) {
+                get_current_task().pcb.set_return_value(-1);
+                break;
+            }
+            current_task_stat(params[0], reinterpret_cast<fd_stat*>(params[1]));
+            break;
+        }
+        default:
+            wwassert(false, "Unknown syscall id");
+            break;
         }
     }
 }

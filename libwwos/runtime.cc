@@ -1,6 +1,7 @@
 #include "wwos/alloc.h"
 #include "wwos/assert.h"
 #include "wwos/defs.h"
+#include "wwos/format.h"
 #include "wwos/stdint.h"
 #include "wwos/syscall.h"
 
@@ -39,13 +40,36 @@ private:
 
 paged_allocator* uallocator = nullptr;
 
+namespace wwos {
+
+wwos::int64_t fd_stdin = 0;
+wwos::int64_t fd_stdout = 0;
+
+}
+
 extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
+    using namespace wwos;
+    
     bool succ = wwos::allocate_page(wwos::USERSPACE_HEAP);
     wwassert(succ, "Failed to allocate page");
 
     static paged_allocator suallocator;
 
     uallocator = &suallocator;
+
+    
+    auto pid = wwos::get_pid();
+
+    fd_stdin = wwos::open(wwos::format("/proc/{}/fifo/stdin", pid), wwos::fd_mode::READONLY);
+    fd_stdout = wwos::open(wwos::format("/proc/{}/fifo/stdout", pid), wwos::fd_mode::WRITEONLY);
+
+    if(fd_stdin < 0 || fd_stdout < 0) {
+        wwlog("Failed to open stdin/stdout");
+    }
+
+    wwfmtlog("pid={}, stdin = {}, stdout = {}", wwos::get_pid(), fd_stdin, fd_stdout);
+
+    wwassert(fd_stdin == 0 && fd_stdout == 1, "Invalid file descriptor");
 
     main();
 }

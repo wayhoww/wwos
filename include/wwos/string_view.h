@@ -7,7 +7,7 @@ namespace wwos {
 
 inline size_t strlen(const char* str) {
     size_t len = 0;
-    while (str[len] != '\0') {
+    while (str[len] != '\0' && len < ~0ull) {
         len++;
     }
     return len;
@@ -76,6 +76,30 @@ private:
     const char* m_str;
     size_t m_len;
 };
+
+
+inline bool stoi(const string_view& str, int32_t& out) {
+    int result = 0;
+    bool neg = false;
+    for (size_t i = 0; i < str.size(); i++) {
+        if(i == 0 && str[i] == '-') {
+            neg = true;
+            continue;
+        }
+        if(str[i] < '0' || str[i] > '9') {
+            return false;
+        }
+        result = result * 10 + (str[i] - '0');
+    }
+    if(neg && str.size() == 1) {
+        return false;
+    }
+    if(neg) {
+        result = -result;
+    }
+    out = result;
+    return true;
+}
 
 }
 

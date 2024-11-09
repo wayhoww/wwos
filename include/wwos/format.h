@@ -33,9 +33,40 @@ string format_element(
     }
 }
 
-template <typename T = string> inline string format_element(string_view format_string, string elem) { return elem; }
-template <typename T = const char*> inline string format_element(string_view format_string, const char* elem) { return string(elem); }
-template <typename T = string_view> inline string format_element(string_view format_string, string_view elem) { return string(elem.data(), elem.size()); }
+template <typename T = string> inline string format_element(string_view format_string, string elem) { 
+    if(format_string.size() > 0) {
+        auto lastchar = format_string[format_string.size() - 1];
+        if(lastchar == 'l' || lastchar == 'r') {
+            format_string = format_string.substr(0, format_string.size() - 1);
+        } else {
+            lastchar = 'r';
+        }
+        int width = 0;
+        bool succ = stoi(format_string, width);
+        wwassert(succ, "invalid width");
+        string out;
+        if(lastchar == 'r') {
+            out = elem;
+            for(int64_t i = 0; i < width - int64_t(elem.size()); i++) {
+                out.push_back(' ');
+            }
+        } else {
+            for(int64_t i = 0; i < width - int64_t(elem.size()); i++) {
+                out.push_back(' ');
+            }
+            out += elem;
+        }
+        return out;
+    } else {
+        return elem;
+    } 
+}
+template <typename T = const char*> inline string format_element(string_view format_string, const char* elem) { 
+    return format_element<string>(format_string, string(elem));
+}
+template <typename T = string_view> inline string format_element(string_view format_string, string_view elem) { 
+    return format_element<string>(format_string, string(elem.data(), elem.size()));
+}
 
 
 template <size_t i, size_t count, typename T, typename... Ts>

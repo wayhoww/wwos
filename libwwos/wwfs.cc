@@ -68,7 +68,7 @@ void basic_file_system::format(meta_t meta) {
     wwassert(inode_root == 0, "Invalid root inode");
 
     inode inode_root_raw = get_inode(inode_root);
-    inode_root_raw.type = inode_type::directory;
+    inode_root_raw.type = inode_type::DIRECTORY;
     inode_root_raw.size = 0;
     set_inode(inode_root, inode_root_raw);
 }
@@ -130,7 +130,7 @@ int64_t basic_file_system::create(int64_t parent, string_view name, inode_type t
     set_inode(inode_id_new, inode_new);
 
     inode inode_parent = get_inode(parent);
-    wwassert(inode_parent.type == inode_type::directory, "Parent is not a directory");
+    wwassert(inode_parent.type == inode_type::DIRECTORY, "Parent is not a directory");
     
     auto additional_size = align_up<size_t>(name.size() + 1, 8) + 8;
     auto new_parent_size = inode_parent.size + additional_size;
@@ -158,7 +158,7 @@ vector<pair<string, int64_t>> basic_file_system::get_children(int64_t inode_id) 
 
     inode inode_raw = get_inode(inode_id);
 
-    wwassert(inode_raw.type == inode_type::directory, "Not a directory");
+    wwassert(inode_raw.type == inode_type::DIRECTORY, "Not a directory");
 
     if(inode_raw.size == 0) {
         return {};
@@ -399,7 +399,7 @@ size_t basic_file_system::read_data(int64_t id, size_t offset, size_t size, void
     }
 
     auto inode_raw = get_inode(id);
-    wwassert(inode_raw.type == inode_type::file, "Not a file");
+    wwassert(inode_raw.type == inode_type::FILE, "Not a file");
     wwassert(offset + size <= inode_raw.size, "Invalid size");
     if(offset + size > inode_raw.size) {
         size = inode_raw.size - offset;
@@ -422,7 +422,7 @@ size_t basic_file_system::write_data(int64_t id, size_t offset, size_t size, con
 
     auto inode_raw = get_inode(id);
 
-    wwassert(inode_raw.type == inode_type::file, "Not a file");
+    wwassert(inode_raw.type == inode_type::FILE, "Not a file");
 
     if(offset + size > inode_raw.size) {
         inode_raw = resize_inode(id, offset + size);

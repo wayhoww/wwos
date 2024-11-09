@@ -1,6 +1,10 @@
 #ifndef _WWOS_STDIO_H
 #define _WWOS_STDIO_H
 
+#ifdef WWOS_HOST
+#include <cstdio>
+#endif
+
 #include "wwos/string.h"
 #include "wwos/string_view.h"
 #include "wwos/syscall.h"
@@ -13,6 +17,8 @@ namespace wwos {
     inline void putchar(char c) {
         #ifdef WWOS_KERNEL
         kernel::kputchar(c);
+        #elif defined(WWOS_HOST)
+        std::putchar(c);
         #else
         syscall(syscall_id::PUTCHAR, c);
         #endif
