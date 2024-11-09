@@ -6,6 +6,10 @@
 
 namespace wwos {
 
+    inline bool is_space_char(char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    }
+    
     class string: public vector<uint8_t> {
     public:
         constexpr static size_t npos = -1;
@@ -100,6 +104,27 @@ namespace wwos {
             return m_size - 1;
         }
 
+        string strip() const {
+            string out;
+
+            int64_t start = 0;
+            int64_t end = size() - 1;
+
+            while(start < size() && (is_space_char((*this)[start]))) {
+                start++;
+            }
+
+            while(end >= 0 && (is_space_char((*this)[end]))) {
+                end--;
+            }
+            
+            for(int64_t i = start; i <= end; i++) {
+                out.push_back((*this)[i]);
+            }
+
+            return out;
+        }
+
         const char* c_str() const {
             return (const char*) m_data;
         }
@@ -128,6 +153,18 @@ namespace wwos {
                 out.push_back((*this)[i]);
             }
             return out;
+        }
+
+        bool starts_with(const string& other) const {
+            if(size() < other.size()) {
+                return false;
+            }
+            for(size_t i = 0; i < other.size(); i++) {
+                if((*this)[i] != other[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
     };
 }

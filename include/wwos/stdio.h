@@ -14,7 +14,11 @@
 #endif
 
 namespace wwos {
-    inline void putchar(char c) {
+
+    extern wwos::int64_t fd_stdin;
+    extern wwos::int64_t fd_stdout;
+
+    inline void kputchar(char c) {
         #ifdef WWOS_KERNEL
         kernel::kputchar(c);
         #elif defined(WWOS_HOST)
@@ -24,10 +28,30 @@ namespace wwos {
         #endif
     }
 
-    inline int32_t getchar() {
+    inline int32_t kgetchar() {
         int32_t c = syscall(syscall_id::GETCHAR, 0);
         if(c <= 1) return -1;
         else return c;
+    }
+
+    inline void putchar(char c) {
+        #ifdef WWOS_KERNEL
+        kernel::kputchar(c);
+        #elif defined(WWOS_HOST)
+        std::putchar(c);
+        #else
+        // syscall(syscall_id::PUTCHAR, c);
+        wwos::write(fd_stdout, (uint8_t*)&c, 1);
+        #endif
+    }
+
+    inline int32_t getchar() {
+        int32_t c;
+        do {
+            uint64_t size = wwos::read(fd_stdin, (uint8_t*)&c, 1);
+            wwassert(size >= 0, "Failed to read from stdin");
+            if(size == 1) return c;
+        } while(true);
     }
 
     inline void print(string_view s) {

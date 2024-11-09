@@ -1,30 +1,263 @@
+#include "wwos/assert.h"
 #include "wwos/format.h"
+#include "wwos/list.h"
+#include "wwos/queue.h"
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string_view.h"
 #include "wwos/syscall.h"
+#include "wwos/vector.h"
 
 
-int main() {
-    int fd_proc2;
-    do {
-        fd_proc2 = wwos::open("/proc/2/fifo/stdout", wwos::fd_mode::READONLY);
-    } while (fd_proc2 < 0);
+wwos::int64_t current_tty = -1;
 
-    wwos::println("Opened /proc/2/fifo/stdout");
+class output_proxy {
+public:
+    output_proxy(): m_buffer(10240) {}
 
-    wwos::uint8_t buffer[512];
-    while(true) {
-        int ret = wwos::read(fd_proc2, buffer, 512);
-        if(ret < 0) {
-            wwos::println("Failed to read /proc/2/fifo/stdout");
+    void write(wwos::uint8_t c) {
+        wwos::kputchar(c);
+        wwos::uint8_t buf;
+        if(m_buffer.full()) m_buffer.pop(buf);
+        m_buffer.push(c);
+    }
+
+    void rewrite() {
+        for(auto c: m_buffer.items()) {
+            wwos::kputchar(c);
         }
-        if(ret == 0) continue;
+    }
 
-        wwos::printf("Read from /proc/2/fifo/stdout, ret = {}\n", ret);
-        wwos::print(wwos::string_view((const char*)buffer, ret));
+    void clear() {
+        m_buffer.clear();
+    }
+
+protected:
+    wwos::cycle_queue<wwos::uint8_t> m_buffer;
+};
+
+struct tty_info {
+    wwos::int64_t pid;
+    wwos::int64_t fd_stdin;
+    wwos::int64_t fd_stdout;
+    wwos::list<wwos::uint8_t> buffer_stdin;
+    wwos::list<wwos::uint8_t> buffer_stdout;
+    wwos::vector<wwos::uint8_t> buffer_line;
+    output_proxy proxy;
+};
+
+tty_info* ttys[4];
+
+wwos::string tty_getline(output_proxy& proxy) {
+    wwos::string out;
+    while(true) {
+        wwos::int32_t c = wwos::kgetchar();
+        if(c == -1) {
+            continue;
+        }
+        proxy.write(c);
+
+        if(c == '\r') {
+            proxy.write('\n');
+            break;
+        }
+
+        out.push_back(c);
+    }
+
+    return out;
+}
+
+void tty_print(output_proxy& proxy, wwos::string_view s) {
+    for (wwos::size_t i = 0; i < s.size(); i++) {
+        proxy.write(s[i]);
+    }
+}
+
+void initialize_tty(wwos::size_t i) {
+    if(ttys[i] != nullptr) {
+        return;
+    }
+
+    auto pid = wwos::fork();
+    if(pid < 0) {
+        wwassert(false, "Failed to fork");
+        return;
+    }
+
+    if(pid == 0) {
+        wwos::exec("/app/shell");
+    }
+
+    ttys[i] = new tty_info {
+        .pid = pid,
+        .fd_stdin = wwos::open(wwos::format("/proc/{}/fifo/stdin", pid), wwos::fd_mode::WRITEONLY),
+        .fd_stdout = wwos::open(wwos::format("/proc/{}/fifo/stdout", pid), wwos::fd_mode::READONLY),
+        .buffer_stdin = wwos::list<wwos::uint8_t>(),
+        .buffer_stdout = wwos::list<wwos::uint8_t>()
+    };
+
+    wwassert(ttys[i]->fd_stdin >= 0, "Failed to open fifo");
+    wwassert(ttys[i]->fd_stdout >= 0, "Failed to open fifo");
+}
+
+void switch_to_tty(wwos::int64_t i) {
+    if(i == current_tty) {
+        return;
+    }
+    if(ttys[i] == nullptr) {
+        initialize_tty(i);
     }
     
-    while(true);
+    current_tty = i;
+}
+
+void clear_screen() {
+    wwos::kputchar(0x1b);
+    wwos::kputchar(0x5b);
+    wwos::kputchar(0x33);
+    wwos::kputchar(0x4a);
+    wwos::kputchar(0x1b);
+    wwos::kputchar(0x5b);
+    wwos::kputchar(0x48);
+    wwos::kputchar(0x1b);
+    wwos::kputchar(0x5b);
+    wwos::kputchar(0x32);
+    wwos::kputchar(0x4a);
+}
+
+void command_mode(output_proxy& proxy) {
+    tty_print(proxy, "WWOS Virtual TTY Service\n");
+    tty_print(proxy, "-----------------------------------------------\n");
+    tty_print(proxy, "goto <id>      Switch to TTY #id. id = 0/1/2/3 \n");
+    tty_print(proxy, "log            Show system log                 \n");
+    tty_print(proxy, "ret            Return to previouse tty         \n");
+    tty_print(proxy, "\n");
+    tty_print(proxy, "\n");
+
+    
+    while(true) {
+        tty_print(proxy, "vtty> ");
+        auto line = tty_getline(proxy);
+        if(line == "log") {
+            tty_print(proxy, "Not implemented\n");
+            return;
+        } else if(line == "ret") {
+            return;
+        } else if(line.starts_with("goto ")) {
+            auto id_string = line.substr(5, line.size() - 5);
+            wwos::int32_t id;
+            auto succ = wwos::stoi(id_string, id);
+            if(!succ) {
+                tty_print(proxy, "Failed to parse id\n");
+                continue;
+            }
+            if(id < 1 || id > 4) {
+                tty_print(proxy, "Invalid id\n");
+                continue;
+            }
+            switch_to_tty(id - 1);
+            return;
+        } else {
+            tty_print(proxy, "Invalid command\n");
+            continue;
+        }
+    }
+}
+
+
+bool is_normal_characters(wwos::int32_t c) {
+    if(c >= 32 && c <= 136) {
+        return true;
+    }
+    return false;
+}
+
+int main() {
+    for(wwos::size_t i = 0; i < 4; i++) {
+        ttys[i] = nullptr;
+    }
+
+    current_tty = -1;
+    switch_to_tty(0);
+
+    output_proxy command_mode_proxy;
+    
+    while(true) {
+        auto c = wwos::kgetchar();
+        
+        if(c == 27) {
+            clear_screen();
+            command_mode(command_mode_proxy);
+
+            auto p_tty = ttys[current_tty];
+            clear_screen();
+            p_tty->proxy.rewrite();
+            continue;
+        }
+
+
+        auto p_tty = ttys[current_tty];
+
+        if(is_normal_characters(c) || c == 13) {
+            if(c == 13) c = 10;
+
+            p_tty->buffer_line.push_back(c);
+            p_tty->proxy.write(c);
+         
+
+            if(c == 10) {
+                for(auto c: p_tty->buffer_line) {
+                    p_tty->buffer_stdin.push_back(c);
+                }
+                p_tty->buffer_line.clear();
+            }
+        }
+        
+        while(true) {
+            wwos::uint8_t bufc;
+            bool succ = p_tty->buffer_stdin.get_front(bufc);
+            if(!succ) {
+                break;
+            }
+            auto size = wwos::write(p_tty->fd_stdin, &bufc, 1);
+            if(size <= 0) {
+                break;
+            }
+            p_tty->buffer_stdin.pop_front(bufc);
+        }
+
+        // cache stdout
+
+        for(wwos::size_t i = 0; i < sizeof(ttys) / sizeof(ttys[0]); i++) {
+            auto i_tty = ttys[i];
+            if(i_tty == nullptr) {
+                continue;
+            }
+        
+            char buffer[128];
+            while(true) {
+                auto size = wwos::read(i_tty->fd_stdout, (wwos::uint8_t*)buffer, sizeof(buffer));
+                
+                for(wwos::int64_t i = 0; i < size; i++) {
+                    p_tty->buffer_stdout.push_back(buffer[i]);
+                }
+
+                if(size < sizeof(buffer)) {
+                    break;
+                }
+            }
+        }
+
+        while(true) {
+            wwos::uint8_t bufc;
+            bool succ = p_tty->buffer_stdout.get_front(bufc);
+            if(!succ) {
+                break;
+            }
+            p_tty->proxy.write(bufc);
+            p_tty->buffer_stdout.pop_front(bufc);
+        }
+    }
     return 0;
 }

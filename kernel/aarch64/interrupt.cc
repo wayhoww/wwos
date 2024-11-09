@@ -32,8 +32,8 @@ uint64_t get_ec_bits() {
 uint64_t get_far_el1() {
     uint64_t far_el1;
     asm volatile(R"(
-        MRS x0, far_el1;
-    )": "=r"(far_el1) : : "x0");
+        MRS %0, far_el1;
+    )": "=r"(far_el1) : :);
 
     return far_el1;
 }
@@ -273,11 +273,7 @@ constexpr size_t TIMER_IRQ = 30;
             receive_syscall(static_cast<syscall_id>(arg0), arg1);
         } else if(ec_bits == 0b100100 || ec_bits == 0b100101) {
             auto far = get_far_el1();
-            if(far == 0) {
-                wwassert(false, "null pointer exception");
-            } else {
-                wwassert(false, "Data abort: not supported yet");
-            }
+            on_data_abort(far);
         } else {
             wwassert(false, "Other reason: not supported yet");
         }

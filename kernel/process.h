@@ -69,6 +69,8 @@ void fork_current_task();
 
 void kallocate_page(uint64_t va);
 
+void on_data_abort(uint64_t addr);
+
 // semaphore
 int64_t create_semaphore(uint64_t init);
 int64_t delete_semaphore(int64_t id);

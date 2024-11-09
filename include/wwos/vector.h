@@ -201,6 +201,10 @@ public:
         return end();
     }
 
+    void clear() {
+        m_size = 0;
+    }
+
 protected:
 
     void expand() {

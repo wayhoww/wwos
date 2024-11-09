@@ -2,11 +2,14 @@ include wwos.mk
 
 DEFINES += -DWWOS_KERNEL
 
-.PHONY: all tools run clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app applications/tty/tty.app dev/qemu_tracer/qemu_tracer.so qemu.log.sym
+.PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app applications/tty/tty.app dev/qemu_tracer/qemu_tracer.so qemu.log.sym
 
 all: wwos.img tools compile_flags.txt
 
 run: wwos.img
+	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none
+
+log: wwos.img
 	qemu-system-aarch64 -machine virt -cpu cortex-a57 -kernel $< -nographic -monitor none -d int,in_asm,guest_errors -D qemu.log
 	
 qemu.log.sym: dev/symbolify.py qemu.log

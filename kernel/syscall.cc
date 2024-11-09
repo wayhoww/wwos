@@ -11,17 +11,15 @@
 namespace wwos::kernel {
     void receive_syscall(syscall_id id, uint64_t arg) {
         switch (id) {
-            case syscall_id::PUTCHAR:
-                kputchar(arg);
-                break;
+        case syscall_id::PUTCHAR:
+            kputchar(arg);
+            break;
         case syscall_id::GETCHAR:
-                get_current_task().pcb.set_return_value(kgetchar());
-                break;
-
+            get_current_task().pcb.set_return_value(kgetchar());
+            break;
         case syscall_id::ALLOC:
             kallocate_page(arg);
             break;
-            
         case syscall_id::FORK:
             fork_current_task();
             break;

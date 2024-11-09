@@ -48,12 +48,12 @@ public:
     }
     void remove(const K& key) {
         wwassert(contains(key), "key not found");
-        auto node = m_tree.find({key, V()});
+        auto node = m_tree.find_exact({key, V()});
         m_tree.remove(node);
     }
     V& get(const K& key) {
         wwassert(contains(key), "key not found");
-        return m_tree.find({key, V()})->data.value;
+        return m_tree.find_exact({key, V()})->data.value;
     }
     vector<pair<K, V>> items() const {
         auto items = m_tree.items();

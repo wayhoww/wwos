@@ -30,8 +30,26 @@ public:
         return true;
     }
 
+    void clear() {
+        m_head = 0;
+        m_tail = 0;
+        m_size = 0;
+    }
+
     size_t size() const {
         return m_size;
+    }
+
+    bool full() const {
+        return m_size == m_data.size();
+    }
+
+    vector<T> items() const {
+        vector<T> out;
+        for(size_t i = 0; i < m_size; i++) {
+            out.push_back(m_data[(m_head + i) % m_data.size()]);
+        }
+        return out;
     }
 
 protected:

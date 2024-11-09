@@ -1,3 +1,4 @@
+#include "wwos/assert.h"
 #include "wwos/format.h"
 #include "wwos/pair.h"
 #include "wwos/stdint.h"
@@ -20,17 +21,10 @@ wwos::string getline() {
     wwos::string out;
     while(true) {
         wwos::int32_t c = wwos::getchar();
-        if(c == -1) {
-            continue;
-        }
-        wwos::putchar(c);
-
-        if(c == '\r') {
-            wwos::putchar('\n');
+        out.push_back(c);
+        if(c == '\n') {
             break;
         }
-
-        out.push_back(c);
     }
 
     return out;
@@ -263,10 +257,16 @@ void command_ls(const wwos::vector<wwos::string>& args) {
             wwos::close(children_fd);
             return;
         }
-
-        wwos::string type = stat.type == wwos::fd_type::DIRECTORY ? "dir" : "file";
+        wwos::string type;
+        if(stat.type == wwos::fd_type::DIRECTORY) {
+            type = "dir";
+        } else if (stat.type == wwos::fd_type::FILE) {
+            type = "file";
+        } else {
+            type = "fifo";
+        }
         wwos::string size = wwos::to_string(stat.size);
-
+        
         wwos::printf("{:4}  {:12} {:0l} \n", type, size, child);
     }
 }
@@ -292,69 +292,11 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
 int main() {
     wwos::println("WWOS Shell!");
 
-    char buffer[] = "Hello, World To FIFO!";
-    int ret = wwos::write(1, (wwos::uint8_t*)buffer, sizeof(buffer));
-
-    wwos::printf("write ret = {}\n", ret);
-
-    while(true);
-
-    // auto semaphore = wwos::semaphore_create(0);
-    // for(wwos::size_t i = 0; i < 10; i++) {
-    //     wwos::semaphore_signal_after_microseconds(semaphore, 1000000);
-    //     wwos::semaphore_wait(semaphore);
-    //     wwos::putchar('.');
-    // }
-
-    // auto ret = wwos::create("/abc.txt", wwos::fd_type::FILE);
-    // if(ret < 0) {
-    //     wwos::println("Failed to create /abc.txt");
-    // }
-
-    // auto fd = wwos::open("/abc.txt", wwos::fd_mode::WRITEONLY);
-    // if(fd < 0) {
-    //     wwos::println("Failed to open /abc.txt");
-    // }
-
-    // wwos::string data = "Hello, World!";
-    // ret = wwos::write(fd, data.data(), data.size());
-    // if(ret < 0) {
-    //     wwos::println("Failed to write /abc.txt");
-    // }
-
-    // wwos::close(fd);
-
-    // fd = wwos::open("/abc.txt", wwos::fd_mode::READONLY);
-    // if(fd < 0) {
-    //     wwos::println("Failed to open /abc.txt");
-    // }
-
-    // wwos::fd_stat stat;
-    // ret = wwos::stat(fd, &stat);
-    // if(ret < 0) {
-    //     wwos::println("Failed to stat /abc.txt");
-    // }
-
-    // // int pid = wwos::fork();
-
-    // // wwos::printf("pid={}\n", pid);
-    // wwos::vector<wwos::uint8_t> buffer(stat.size);
-    // ret = wwos::read(fd, buffer.data(), buffer.size());
-    // if(ret < 0) {
-    //     wwos::println("Failed to read /abc.txt");
-    // }
-
-    // wwos::string_view view((const char*) buffer.data(), buffer.size());
-    // wwos::println(view);
-
-    // wwos::close(fd);
-
-
-
-
     while(true) {
-        wwos::print("> ");
+        wwos::print("shell> ");
         auto line = getline();
+        line = line.strip();
+
         auto tokens = tokenize(line);
         auto parser = statement_parser(tokens);
         auto cmd = parser.parse();
@@ -363,7 +305,7 @@ int main() {
             wwos::println(parser.error());
             continue;
         } 
-
+        
         if(cmd.command == "ls") {
             command_ls(cmd.args);
         } else if(cmd.command == "mkdir") {

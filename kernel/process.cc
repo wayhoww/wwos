@@ -1,3 +1,4 @@
+#include "wwos/algorithm.h"
 #include "wwos/alloc.h"
 #include "wwos/assert.h"
 #include "wwos/avl.h"
@@ -334,7 +335,7 @@ namespace wwos::kernel {
         // wwfmtlog("ret?={}, ret_value={}", task->pcb.has_return_value, task->pcb.return_value);
         // wwfmtlog("scheduled. eret to unprivileged. pid={}, pc={:x} usp={:x}", task->pid, task->pcb.pc, task->pcb.usp);
         task->pcb.tt->activate();
-        set_timeout_interrupt(100000);
+        set_timeout_interrupt(10000);
 
         eret_to_unprivileged(
             task->pcb.pc, task->pcb.usp, task->pcb.ksp, task->pcb.state, 
@@ -415,8 +416,12 @@ namespace wwos::kernel {
         }
 
         uint64_t fd = current_task->fd_counter++;
+        wwfmtlog("assigned fd {} for pid {}", fd, current_task->pid);
+
         current_task->fds.insert(fd, fd_info {.node = sfn, .mode = mode, .offset = 0});
 
+        wwfmtlog("inserted fd {} for pid {}. mode={}", fd, current_task->pid, static_cast<int>(current_task->fds.get(fd).mode));
+        
         current_task->pcb.set_return_value(fd);
     }
 
@@ -456,7 +461,7 @@ namespace wwos::kernel {
         auto& fd_info = current_task->fds.get(fd);
         if(fd_info.mode != fd_mode::READONLY) {
             current_task->pcb.set_return_value(-3);
-            wwlog("invalid mode");
+            wwfmtlog("invalid mode {} for pid {} fd {}", static_cast<int>(fd_info.mode), current_task->pid, fd);
             return;
         }
         
@@ -554,5 +559,21 @@ namespace wwos::kernel {
 
         current_task->fds.remove(fd);
         current_task->pcb.set_return_value(0);
+    }
+
+    void on_data_abort(uint64_t addr) {
+        auto addr_aligned_down = align_down(addr, translation_table_user::PAGE_SIZE);
+        if(addr_aligned_down >= USERSPACE_STACK_BOTTOM && addr_aligned_down <= USERSPACE_STACK_TOP) {
+            auto& current_task = get_current_task();
+            auto pa =  pallocator->alloc();
+            ttkernel->set_page(pa, pa);
+            current_task.pcb.tt->set_page(addr_aligned_down, pa);
+            current_task.pcb.tt->activate();
+
+            return;
+        }
+        
+        wwassert(false, "data abort");
+        
     }
 }

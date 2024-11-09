@@ -27,11 +27,6 @@ int main() {
         wwos::exec("/app/tty");
     }
 
-    pid = wwos::fork();
-    if(pid == 0) {
-        wwos::exec("/app/shell");
-    }
-
     while(true);
 
     return 0;
