@@ -17,14 +17,17 @@ namespace wwos::kernel {;
             }
             uart_writeByteBlockingActual(c);
 #else
+            if(c == '\n') {
+                g_uart->write('\r');
+            }
             g_uart->write(c);
 #endif
             
         } else {
-// #ifdef PA_UART_LOGGING
-//             auto uart_addr = reinterpret_cast<volatile uint32_t*>(PA_UART_LOGGING);
-//             *uart_addr = c;
-// #endif
+#ifdef PA_UART_LOGGING
+            auto uart_addr = reinterpret_cast<volatile uint32_t*>(PA_UART_LOGGING);
+            *uart_addr = c;
+#endif
         }
     }
 

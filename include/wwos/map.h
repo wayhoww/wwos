@@ -46,6 +46,12 @@ public:
         wwassert(!contains(key), "key already exists");
         m_tree.insert({key, value});
     }
+    void update(const K& key, const V& value) {
+        wwassert(contains(key), "key not found");
+        auto node = m_tree.find_exact({key, V()});
+        node->data.value = value;
+    }
+
     void remove(const K& key) {
         wwassert(contains(key), "key not found");
         auto node = m_tree.find_exact({key, V()});

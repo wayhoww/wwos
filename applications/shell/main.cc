@@ -1,6 +1,6 @@
 #include "wwos/assert.h"
 #include "wwos/format.h"
-#include "wwos/pair.h"
+#include "wwos/stdio.h"
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string.h"
@@ -204,6 +204,7 @@ void command_help(const wwos::vector<wwos::string>& args) {
     wwos::println("  mkdir");
     wwos::println("  clear");
     wwos::println("  help");
+    wwos::println("  cat");
 }
 
 void command_clear(const wwos::vector<wwos::string>& args) {
@@ -289,6 +290,102 @@ void command_mkdir(const wwos::vector<wwos::string>& args) {
     }
 }
 
+void command_cat(const wwos::vector<wwos::string>& args) {
+    if(args.size() != 1) {
+        wwos::println("Usage: cat <path>");
+        return;
+    }
+
+    auto fd = wwos::open(args[0], wwos::fd_mode::READONLY);
+    if(fd < 0) {
+        wwos::printf("Failed to open {}\n", args[0]);
+        return;
+    }
+
+    wwos::vector<wwos::uint8_t> buffer(1024);
+
+    char last_char = '\0';
+
+    while(true) {
+        auto ret = wwos::read(fd, buffer.data(), buffer.size());
+        if(ret < 0) {
+            wwos::printf("Failed to read {}\n", args[0]);
+            wwos::close(fd);
+            return;
+        }
+        if(ret == 0) {
+            break;
+        }
+        for(wwos::size_t i = 0; i < ret; i++) {
+            wwos::putchar(buffer[i]);
+        }
+        last_char = buffer[ret - 1];
+    }
+    wwos::close(fd);
+    if(last_char != '\n') {
+        wwos::putchar('\n');
+    }
+}
+
+void command_external(const wwos::string& cmd, const wwos::vector<wwos::string>& args) {
+    auto pid = wwos::fork();
+
+    if(pid < 0) {
+        wwos::println("Failed to fork");
+        return;
+    }
+
+    if(pid == 0) {
+        auto exec_ret = wwos::exec(cmd);
+        if(exec_ret < 0) {
+            wwos::println("Failed to exec");
+        }
+        wwos::exit();
+    } else {
+    
+        wwos::string path_stdin = wwos::format("/proc/{}/fifo/stdin", pid);
+        wwos::string path_stdout = wwos::format("/proc/{}/fifo/stdout", pid);
+
+        auto fd_stdin = wwos::open(path_stdin, wwos::fd_mode::WRITEONLY);
+        if(fd_stdin < 0) {
+            wwos::println("Failed to open stdin");
+            return;
+        }
+
+        auto fd_stdout = wwos::open(path_stdout, wwos::fd_mode::READONLY);
+        if(fd_stdout < 0) {
+            wwos::println("Failed to open stdout");
+            wwos::close(fd_stdin);
+            return;
+        }
+        
+        while(true) {
+            wwos::uint8_t buffer[128];
+            auto size = wwos::read(fd_stdout, buffer, sizeof(buffer));
+            if(size < 0) {
+                wwos::println("Failed to read from child");
+                break;
+            }
+            if(size == 0) {
+                auto stat = wwos::tstat(pid);
+
+                if(stat == wwos::task_stat::TERMINATED || stat == wwos::task_stat::INVALID) {
+                    break;
+                }
+                wwos::sleep(1000);
+                continue;
+            }
+            for(wwos::int64_t i = 0; i < size; i++) {
+                wwos::putchar(buffer[i]);
+            }
+        }
+
+        wwos::close(fd_stdin);
+        wwos::close(fd_stdout);
+    }
+}
+
+
 int main() {
     wwos::println("WWOS Shell!");
 
@@ -305,6 +402,30 @@ int main() {
             wwos::println(parser.error());
             continue;
         } 
+
+        if(cmd.output != "") {            
+            wwos::println("redirecting output");
+            auto new_fd = wwos::open(cmd.output, wwos::fd_mode::WRITEONLY);
+            if(new_fd < 0) {
+                wwos::create(cmd.output, wwos::fd_type::FILE);
+                new_fd = wwos::open(cmd.output, wwos::fd_mode::WRITEONLY);
+            }
+            if(new_fd < 0) {
+                wwos::printf("Failed to open {}\n", cmd.output);
+                continue;
+            }
+            wwos::fd_stdout = new_fd;
+        }
+
+        if(cmd.input != "") {
+            wwos::println("redirecting input");
+            auto new_fd = wwos::open(cmd.input, wwos::fd_mode::READONLY);
+            if(new_fd < 0) {
+                wwos::printf("Failed to open {}\n", cmd.input);
+                continue;
+            }
+            wwos::fd_stdin = new_fd;
+        }
         
         if(cmd.command == "ls") {
             command_ls(cmd.args);
@@ -314,16 +435,20 @@ int main() {
             command_help(cmd.args);
         } else if(cmd.command == "clear") {
             command_clear(cmd.args);
+        } else if(cmd.command == "cat") {
+            command_cat(cmd.args);
         } else {
-            for(auto c: line) {
-                wwos::printf("{} ", int(c));
-            }
-            wwos::println("");
-            for(auto c: cmd.command) {
-                wwos::printf("{} ", int(c));
-            }
-            wwos::println("");
-            wwos::printf("Unknown command: #{}#\n", cmd.command);
+            command_external(cmd.command, cmd.args);
+        }
+
+        if(wwos::fd_stdin != 0) {
+            wwos::close(wwos::fd_stdin);
+            wwos::fd_stdin = 0;
+        }
+
+        if(wwos::fd_stdout != 1) {
+            wwos::close(wwos::fd_stdout);
+            wwos::fd_stdout = 1;
         }
     }
 

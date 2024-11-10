@@ -30,6 +30,7 @@ namespace wwos::kernel {
 
     scheduler* p_scheduler = nullptr;
     map<uint64_t, semaphore*>* p_semaphores;
+    map<uint64_t, task_info*>* p_tasks;
     avl_tree<clock_info>* p_clock_tree;
 
     int64_t pid_counter = 0;
@@ -69,12 +70,20 @@ namespace wwos::kernel {
     void init_fifo_for_process(uint64_t pid) {
         wwfmtlog("initing fifo for pid {}", pid);
 
+        wwmark("msg");
         auto proc = open_shared_file_node(0, "/proc", fd_mode::READONLY);
+        wwmark("msg");
         if(proc == nullptr) {
+        wwmark("msg");
             create_shared_file_node("/proc", fd_type::DIRECTORY);
+        wwmark("msg");
         } else {
+        wwmark("msg");
             close_shared_file_node(0, proc);
+        wwmark("msg");
         }
+
+        wwlog("proc folder exists");
 
         create_shared_file_node(format("/proc/{}", pid), fd_type::DIRECTORY);
         create_shared_file_node(format("/proc/{}/fifo", pid), fd_type::DIRECTORY);
@@ -107,7 +116,7 @@ namespace wwos::kernel {
                 .has_return_value = true,
                 .return_value = 0,
                 .state = parent->pcb.state,
-                .tt = new translation_table_user(),  
+                .tt = translation_table_user(),  
             },
             .fd_counter = parent->fd_counter,
         };
@@ -135,15 +144,16 @@ namespace wwos::kernel {
 
         parent->pcb.set_return_value(task->pid);
 
-        auto pages = parent->pcb.tt->get_all_pages();
+        auto pages = parent->pcb.tt.get_all_pages();
         for(auto& [va, pa] : pages) {
             auto new_pa = pallocator->alloc();
             ttkernel->set_page(new_pa, new_pa);
             ttkernel->activate();
             auto new_va_kernel = new_pa + KA_BEGIN;
             memcpy(reinterpret_cast<void*>(new_va_kernel), reinterpret_cast<void*>(pa + KA_BEGIN), translation_table_kernel::PAGE_SIZE);
-            task->pcb.tt->set_page(va, new_pa);
+            task->pcb.tt.set_page(va, new_pa);
         }        
+        p_tasks->insert(task->pid, task);
         p_scheduler->add_task(task);
     }
 
@@ -151,6 +161,7 @@ namespace wwos::kernel {
         p_scheduler = new scheduler();
         p_semaphores = new map<uint64_t, semaphore*>();
         p_clock_tree = new avl_tree<clock_info>();
+        p_tasks = new map<uint64_t, task_info*>();
         pid_counter = 0;
         semaphore_counter = 0;
     }
@@ -190,7 +201,7 @@ namespace wwos::kernel {
             s->count--;
         } else {
             p_scheduler->remove_task(task);
-            s->waiting_tasks.push_back(task);
+            s->waiting_tasks.push_back(task->pid);
         }
     }
 
@@ -200,8 +211,9 @@ namespace wwos::kernel {
         }
 
         while(count > 0 and s->waiting_tasks.size() > 0) {
-            auto task = s->waiting_tasks.back();
+            auto task_pid = s->waiting_tasks.back();
             s->waiting_tasks.pop_back();
+            auto task = p_tasks->get(task_pid);
             task->pcb.set_return_value(0);
             p_scheduler->add_task(task);
             count--;
@@ -273,6 +285,29 @@ namespace wwos::kernel {
     void create_process(string_view path, task_info* replacing) {
         // 1. load program
         // 2. add to process list
+
+        auto sfn = open_shared_file_node(0, path, fd_mode::READONLY);
+        if(replacing != nullptr && sfn == nullptr) {
+            wwlog("failed to open file\n");
+            replacing->pcb.set_return_value(-1);
+            return;
+        }
+        wwassert(sfn, "failed to open file");
+        
+        auto size = get_shared_node_size(sfn);
+        vector<uint8_t> binary(size);
+        
+        auto ret = read_shared_node(binary.data(), sfn, 0, size);
+        if(ret != size && replacing != nullptr) {
+            wwlog("failed to read file\n");
+            close_shared_file_node(0, sfn);
+            replacing->pcb.set_return_value(-1);
+            return;
+        }
+        wwassert(ret == size, "failed to read file");
+
+        close_shared_file_node(0, sfn);
+
         auto kernel_stack = pallocator->alloc(KERNEL_STACK_SIZE / translation_table_kernel::PAGE_SIZE);
         for(size_t i = 0; i < KERNEL_STACK_SIZE; i += translation_table_kernel::PAGE_SIZE) {
             ttkernel->set_page(kernel_stack + i, kernel_stack + i);
@@ -290,28 +325,21 @@ namespace wwos::kernel {
                 .has_return_value = false,
                 .return_value = 0,
                 .state = process_state(),
-                .tt = new translation_table_user(),  
+                .tt = translation_table_user(),  
             }
         };
 
-        auto sfn = open_shared_file_node(0, path, fd_mode::READONLY);
-        wwassert(sfn, "failed to open file");
-        
-        auto size = get_shared_node_size(sfn);
-        vector<uint8_t> binary(size);
-        
-        wwassert(read_shared_node(binary.data(), sfn, 0, size) == size, "failed to read file");
-        close_shared_file_node(0, sfn);
-
-        load_program(*task->pcb.tt, binary);
+        load_program(task->pcb.tt, binary);
 
         if(replacing == nullptr) {
             init_fifo_for_process(pid);
         }
 
         if(replacing != nullptr) {
+            p_tasks->update(pid, task);
             p_scheduler->replace_task(replacing, task);
         } else {
+            p_tasks->insert(pid, task);
             p_scheduler->add_task(task);
         }
     }
@@ -319,6 +347,8 @@ namespace wwos::kernel {
     void replace_current_task(string_view path) {
         auto task = p_scheduler->get_executing_task();
         wwassert(task != nullptr, "Invalid pid");
+
+        wwfmtlog("replacing {} with {}", task->pid, path);
 
         create_process(path, task);
 
@@ -332,9 +362,11 @@ namespace wwos::kernel {
         wwassert(task != nullptr, "no task to schedule");
 
         // dump ret
+#ifdef WWOS_LOG_ERET
         wwfmtlog("ret?={}, ret_value={}", task->pcb.has_return_value, task->pcb.return_value);
         wwfmtlog("scheduled. eret to unprivileged. pid={}, pc={:x} usp={:x}", task->pid, task->pcb.pc, task->pcb.usp);
-        task->pcb.tt->activate();
+#endif
+        task->pcb.tt.activate();
         set_timeout_interrupt(10000);
 
         eret_to_unprivileged(
@@ -368,7 +400,7 @@ namespace wwos::kernel {
             return;
         }
 
-        auto all_pages = current_task.pcb.tt->get_all_pages();
+        auto all_pages = current_task.pcb.tt.get_all_pages();
         for(auto& [v, p] : all_pages) {
             if(v == va) {
                 current_task.pcb.set_return_value(false);
@@ -379,8 +411,8 @@ namespace wwos::kernel {
         auto pa = pallocator->alloc();
         ttkernel->set_page(pa, pa);
         ttkernel->activate();
-        current_task.pcb.tt->set_page(va, pa);
-        current_task.pcb.tt->activate();
+        current_task.pcb.tt.set_page(va, pa);
+        current_task.pcb.tt.activate();
         current_task.pcb.set_return_value(true);
         return;
     }
@@ -462,6 +494,12 @@ namespace wwos::kernel {
         if(fd_info.mode != fd_mode::READONLY) {
             current_task->pcb.set_return_value(-3);
             wwfmtlog("invalid mode {} for pid {} fd {}", static_cast<int>(fd_info.mode), current_task->pid, fd);
+            return;
+        }
+        
+        if(fd_info.node->type == fd_type::DIRECTORY) {
+            current_task->pcb.set_return_value(-4);
+            wwfmtlog("invalid type {} for pid {} fd {}", static_cast<int>(fd_info.node->type), current_task->pid, fd);
             return;
         }
         
@@ -561,19 +599,53 @@ namespace wwos::kernel {
         current_task->pcb.set_return_value(0);
     }
 
+    void current_task_exit() {
+        auto current_task = p_scheduler->get_executing_task();
+        wwassert(current_task, "no executing task");
+
+        wwfmtlog("exiting pid {}", current_task->pid);
+
+        for(auto& [fd, fd_info] : current_task->fds.items()) {
+            close_shared_file_node(current_task->pid, fd_info.node);
+        }
+
+        p_scheduler->remove_task(current_task);
+        p_tasks->remove(current_task->pid);
+        delete current_task;
+        schedule();
+    }
+
     void on_data_abort(uint64_t addr) {
         auto addr_aligned_down = align_down(addr, translation_table_user::PAGE_SIZE);
         if(addr_aligned_down >= USERSPACE_STACK_BOTTOM && addr_aligned_down <= USERSPACE_STACK_TOP) {
             auto& current_task = get_current_task();
             auto pa =  pallocator->alloc();
             ttkernel->set_page(pa, pa);
-            current_task.pcb.tt->set_page(addr_aligned_down, pa);
-            current_task.pcb.tt->activate();
+            current_task.pcb.tt.set_page(addr_aligned_down, pa);
+            current_task.pcb.tt.activate();
             wwfmtlog("allocated page for data abort. addr={:x} pa={:x}", addr_aligned_down, pa);
             return;
         }
         
+        wwfmtlog("data abort at {:x}.", addr);
         wwassert(false, "data abort");
         
+    }
+
+    task_stat get_task_stat(uint64_t pid) {
+        if(!p_tasks->contains(pid)) {
+            if(pid < pid_counter) {
+                return task_stat::TERMINATED;
+            } else {
+                return task_stat::INVALID;
+            }
+        }
+
+        auto task = p_tasks->get(pid);
+        if(p_scheduler->contains_task(task)) {
+            return task_stat::ACTIVE;
+        } else {
+            return task_stat::WAITING;
+        }
     }
 }

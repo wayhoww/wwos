@@ -116,6 +116,10 @@ namespace wwos::kernel {
             return read_size;
         }
 
+        if(node->type == fd_type::DIRECTORY) {
+            return 0;
+        }
+
         return fs->read_data(node->inode, offset, size, buffer);
     }
 
@@ -177,6 +181,7 @@ namespace wwos::kernel {
     }
     
     shared_file_node* open_shared_file_node(uint64_t pid, string_view path, fd_mode mode) {
+        wwmark("msg");
         wwfmtlog("trying to open {} with mode {}. by {}", path, static_cast<int>(mode), pid);
 
         auto inode = get_inode(path);
@@ -281,6 +286,8 @@ namespace wwos::kernel {
     }
 
     bool create_shared_file_node(string_view path, fd_type type) {
+        if(path.size() == 0 || path[0] != '/') return false;
+
         auto [parent_path, name] = get_parent_path(path);
         if(parent_path.size() == 0) {
             wwfmtlog("invalid path {}", path);

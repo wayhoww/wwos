@@ -400,7 +400,6 @@ size_t basic_file_system::read_data(int64_t id, size_t offset, size_t size, void
 
     auto inode_raw = get_inode(id);
     wwassert(inode_raw.type == inode_type::FILE, "Not a file");
-    wwassert(offset + size <= inode_raw.size, "Invalid size");
     if(offset + size > inode_raw.size) {
         size = inode_raw.size - offset;
     }

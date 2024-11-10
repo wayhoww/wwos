@@ -22,6 +22,13 @@ namespace wwos {
         WRITEONLY,
     };
 
+    enum class task_stat: uint64_t {
+        ACTIVE,
+        WAITING,
+        INVALID,
+        TERMINATED
+    };
+
     struct fd_stat {
         uint64_t size;
         fd_type type;
@@ -38,7 +45,9 @@ namespace wwos {
         // process
         FORK,
         EXEC,
+        EXIT,
         GET_PID,
+        TASK_STAT,
 
         // semaphore
         SEMAPHORE_CREATE, 
@@ -99,9 +108,8 @@ namespace wwos {
         return syscall(syscall_id::ALLOC, va);
     }
 
-    [[noreturn]] inline void exec(string_view path) {
-        syscall(syscall_id::EXEC, reinterpret_cast<uint64_t>(path.data()));
-        __builtin_unreachable();
+    inline int64_t exec(string_view path) {
+        return syscall(syscall_id::EXEC, reinterpret_cast<uint64_t>(path.data()));
     }
 
     inline int64_t open(string_view path, fd_mode mode) {
@@ -116,12 +124,12 @@ namespace wwos {
 
     int64_t get_children(int64_t fd, vector<string>& buffer);
 
-    inline size_t read(int64_t fd, uint8_t* buffer, size_t size) {
+    inline int64_t read(int64_t fd, uint8_t* buffer, size_t size) {
         uint64_t params[] = {static_cast<uint64_t>(fd), reinterpret_cast<uint64_t>(buffer), size};
         return syscall(syscall_id::FD_READ, reinterpret_cast<uint64_t>(params));
     }
 
-    inline size_t write(int64_t fd, uint8_t* buffer, size_t size) {
+    inline int64_t write(int64_t fd, uint8_t* buffer, size_t size) {
         uint64_t params[] = {static_cast<uint64_t>(fd), reinterpret_cast<uint64_t>(buffer), size};
         return syscall(syscall_id::FD_WRITE, reinterpret_cast<uint64_t>(params));
     }
@@ -142,6 +150,27 @@ namespace wwos {
 
     inline int64_t get_pid() {
         return syscall(syscall_id::GET_PID, 0);
+    }
+
+    inline int64_t sleep(uint64_t microseconds) {
+        auto semaphore = semaphore_create(0);
+        if(semaphore < 0) {
+            return -1;
+        }
+        auto ret = semaphore_signal_after_microseconds(semaphore, microseconds);
+        if(ret < 0) {
+            return -1;
+        }
+        return semaphore_wait(semaphore);
+    }
+
+    [[noreturn]] inline void exit() {
+        syscall(syscall_id::EXIT, 0);
+        __builtin_unreachable();
+    }
+
+    inline task_stat tstat(uint64_t pid) {
+        return static_cast<task_stat>(syscall(syscall_id::TASK_STAT, pid));
     }
 }
 

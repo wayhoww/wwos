@@ -204,6 +204,7 @@ int main() {
     current_tty = -1;
     switch_to_tty(N_TTYS);
     switch_to_tty(0);
+
     clear_screen();
 
     output_proxy command_mode_proxy;

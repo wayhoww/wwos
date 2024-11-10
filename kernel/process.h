@@ -20,7 +20,7 @@ struct process_control {
     uint64_t return_value;
 
     process_state state;
-    translation_table_user* tt;
+    translation_table_user tt;
 
     void set_return_value(uint64_t value) {
         has_return_value = true;
@@ -47,7 +47,7 @@ struct task_info {
 struct semaphore {
     semaphore(int64_t count): count(count) {}
 
-    wwos::vector<task_info*> waiting_tasks;
+    wwos::vector<int64_t> waiting_tasks;
     int64_t count = 0;
     bool priviledged = false;
 };
@@ -69,7 +69,9 @@ void fork_current_task();
 
 void kallocate_page(uint64_t va);
 
+void current_task_exit();
 void on_data_abort(uint64_t addr);
+task_stat get_task_stat(uint64_t pid);
 
 // semaphore
 int64_t create_semaphore(uint64_t init);
@@ -89,7 +91,6 @@ void current_task_write(int64_t fd, uint8_t* buffer, size_t size);
 void current_task_seek(int64_t fd, int64_t offset);
 void current_task_stat(int64_t fd, fd_stat* stat);
 void current_task_close(int64_t fd);
-
 }
 
 #endif

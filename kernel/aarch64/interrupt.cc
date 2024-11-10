@@ -2,9 +2,7 @@
 
 #include "wwos/algorithm.h"
 #include "wwos/assert.h"
-#include "wwos/format.h"
 #include "wwos/stdint.h"
-#include "wwos/stdio.h"
 #include "wwos/syscall.h"
 
 #include "../drivers/gic2.h"
@@ -210,10 +208,10 @@ constexpr size_t TIMER_IRQ = 30;
 
     int64_t interrupt_id = 1023;
     
-    {
-        auto current_task = get_current_task();
-        wwfmtlog("Exception. ELR={:x}, SP={:x} ARG0={:x} ARG1={:x} SOURCE={:x}, EC={:x}", current_task.pcb.pc, current_task.pcb.usp, arg0, arg1, source, ec_bits);
-    }
+    // {
+    //     auto current_task = get_current_task();
+    //     wwfmtlog("Exception. ELR={:x}, SP={:x} ARG0={:x} ARG1={:x} SOURCE={:x}, EC={:x}", current_task.pcb.pc, current_task.pcb.usp, arg0, arg1, source, ec_bits);
+    // }
 
     if(source % 4 == 1) {
         if(g_interrupt_controller && ((interrupt_id = g_interrupt_controller->get_interrupt_id()) != 1023)) {
@@ -240,11 +238,11 @@ constexpr size_t TIMER_IRQ = 30;
     }
 
     auto& current_task = get_current_task();
-    current_task.pcb.tt->activate();
-
+    current_task.pcb.tt.activate();
+#ifdef WWOS_LOG_ERET
     wwfmtlog("ret?={}, ret_value={}", current_task.pcb.has_return_value, current_task.pcb.return_value);
     wwfmtlog("eret to unprivileged. pid={}, pc={:x} usp={:x}", current_task.pid, current_task.pcb.pc, current_task.pcb.usp);
-
+#endif
     eret_to_unprivileged(current_task.pcb.pc, current_task.pcb.usp, current_task.pcb.ksp, current_task.pcb.state, current_task.pcb.has_return_value, current_task.pcb.return_value);
 }
 

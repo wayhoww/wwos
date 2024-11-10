@@ -7,6 +7,7 @@
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string_view.h"
+#include "wwos/syscall.h"
 
 namespace wwos::kernel {
     void receive_syscall(syscall_id id, uint64_t arg) {
@@ -120,6 +121,12 @@ namespace wwos::kernel {
             current_task_stat(params[0], reinterpret_cast<fd_stat*>(params[1]));
             break;
         }
+        case wwos::syscall_id::TASK_STAT:
+            get_current_task().pcb.set_return_value((uint64_t)get_task_stat(arg));
+            break;
+        case syscall_id::EXIT:
+            current_task_exit();
+            break;
         default:
             wwassert(false, "Unknown syscall id");
             break;

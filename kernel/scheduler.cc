@@ -101,4 +101,8 @@ task_info* scheduler::get_executing_task() {
     return executing_task;
 }
 
+bool scheduler::contains_task(task_info* task) {
+    return active_tasks.find_exact(task_info_ptr(task)) != nullptr;
+}
+
 }

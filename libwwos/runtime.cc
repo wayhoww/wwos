@@ -3,6 +3,7 @@
 #include "wwos/defs.h"
 #include "wwos/format.h"
 #include "wwos/stdint.h"
+#include "wwos/stdio.h"
 #include "wwos/syscall.h"
 
 int main();
@@ -50,8 +51,6 @@ wwos::int64_t fd_stdout = 0;
 extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
     using namespace wwos;
 
-    kprintln("at runtime entry");
-    
     bool succ = wwos::allocate_page(wwos::USERSPACE_HEAP);
     wwassert(succ, "Failed to allocate page");
 
@@ -69,7 +68,9 @@ extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
         wwlog("Failed to open stdin/stdout");
     }
     wwassert(fd_stdin == 0 && fd_stdout == 1, "Invalid file descriptor");
+    
     main();
+    exit();
 }
 
 void* operator new(wwos::size_t size) {

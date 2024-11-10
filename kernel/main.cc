@@ -7,6 +7,7 @@
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string_view.h"
+#include "wwos/syscall.h"
 
 #include "raspi4b/io.h"
 
@@ -15,7 +16,6 @@
 #include "memory.h"
 #include "global.h"
 #include "arch.h"
-#include "wwos/syscall.h"
 
 
 
@@ -27,8 +27,6 @@ extern wwos::uint64_t memdisk_blob_begin_mark;
 namespace wwos::kernel {
 
 translation_table_kernel* initialize_memory() {
-    static translation_table_kernel tt;
-
     // size: 1GB, begin: 1GB
     constexpr size_t MEMORY_BEGIN = WWOS_MEMORY_BEGIN;
     constexpr size_t MEMORY_SIZE = WWOS_MEMORY_SIZE;
@@ -37,16 +35,23 @@ translation_table_kernel* initialize_memory() {
     size_t aligned_begin = align_down(reinterpret_cast<uint64_t>(&wwos_kernel_begin_mark), translation_table_kernel::PAGE_SIZE);
     size_t aligned_end = align_up(reinterpret_cast<uint64_t>(&wwos_kernel_end_mark), translation_table_kernel::PAGE_SIZE);
 
+    // three variables must be declared in order
+    // physical_memory_page_allocator depend on allocator to allocate vector
+    // translation_table_kernel depend on physical_memory_page_allocator to allocate page
+
     static allocator allocator(aligned_end, KERNEL_RESERVED_HEAP);
     kallocator = &allocator;
 
     static physical_memory_page_allocator s_pallocator(MEMORY_BEGIN, MEMORY_SIZE, translation_table_kernel::PAGE_SIZE);
+    pallocator = &s_pallocator;
+
+    static translation_table_kernel tt;
+    
     for(uint64_t va = aligned_begin; va < aligned_end + KERNEL_RESERVED_HEAP; va += translation_table_kernel::PAGE_SIZE) {
         auto pa = va - KA_BEGIN;
         s_pallocator.alloc_specific_page(pa);
         tt.set_page(va, pa);
     }
-    pallocator = &s_pallocator;
 
     return &tt;
 }
@@ -90,6 +95,15 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
 
     ttkernel->activate();
     setup_interrupt();
+
+    
+    // kallocator->enable_logging();
+
+    // new int64_t;
+    // auto r1 = new (std::align_val_t(4096)) uint64_t[512];
+    // delete[] r1;
+
+    // asm volatile("b .");
 
     g_uart = new pl011_driver(PA_UART_LOGGING + KA_BEGIN);
 #ifdef WWOS_BOARD_RASPI4B

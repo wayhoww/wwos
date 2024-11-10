@@ -101,19 +101,20 @@ void allocator::deallocate(void* address) {
         return;
     }
     chunk_header* p_chunk = (chunk_header*)(reinterpret_cast<size_t>(address) - sizeof(chunk_header));
-    chunk_header* chunk = p_chunk;
+    chunk_header chunk = *p_chunk;
 
     if (logging) {
         print("Current LOC: allocator::deallocate, chunk=");
-        printhex(reinterpret_cast<size_t>(chunk));
+        // printhex(reinterpret_cast<size_t>(chunk));
         print("   size=");
-        printhex(chunk->size);
+        printhex(chunk.size);
         print("   next=");
-        printhex(reinterpret_cast<size_t>(chunk->next));
+        printhex(reinterpret_cast<size_t>(chunk.next));
         println("");
     }
 
-    chunk_header* new_p_chunk = chunk->next;
+    chunk_header* new_p_chunk = chunk.next; // next field is reused as `this`
+    new_p_chunk->size = chunk.size;
 
     chunk_header* prev = head;
     chunk_header* current = head->next;
@@ -122,22 +123,22 @@ void allocator::deallocate(void* address) {
         if (prev < new_p_chunk && (new_p_chunk < current || current == nullptr)) {
             size_t end_of_prev = reinterpret_cast<size_t>(prev) + sizeof(chunk_header) + prev->size;
             // wwmark("msg");
-            size_t end_of_new_p_chunk = reinterpret_cast<size_t>(new_p_chunk) + sizeof(chunk_header) + chunk->size;
+            size_t end_of_new_p_chunk = reinterpret_cast<size_t>(new_p_chunk) + sizeof(chunk_header) + chunk.size;
             // wwmark("msg");
             if (end_of_prev > reinterpret_cast<size_t>(new_p_chunk) || (current != nullptr && end_of_new_p_chunk > reinterpret_cast<size_t>(current))) {
                 wwassert(false, "memory corrupted");
             }
 
             bool connected_with_prev = (reinterpret_cast<size_t>(prev) + sizeof(chunk_header) + prev->size == reinterpret_cast<size_t>(new_p_chunk)) && (prev != head);
-            bool connected_with_current = (reinterpret_cast<size_t>(new_p_chunk) + sizeof(chunk_header) + chunk->size == reinterpret_cast<size_t>(current)) && (current != nullptr);
+            bool connected_with_current = (reinterpret_cast<size_t>(new_p_chunk) + sizeof(chunk_header) + chunk.size == reinterpret_cast<size_t>(current)) && (current != nullptr);
 
             wwassert(!(current == nullptr && connected_with_current), "memory corrupted");
 
             if (connected_with_prev && connected_with_current) {
-                prev->size += 2 * sizeof(chunk_header) + chunk->size + current->size;
+                prev->size += 2 * sizeof(chunk_header) + chunk.size + current->size;
                 prev->next = current->next;
             } else if (connected_with_prev) {
-                prev->size += sizeof(chunk_header) + chunk->size;
+                prev->size += sizeof(chunk_header) + chunk.size;
                 prev->next = current;
             } else if (connected_with_current) {
                 new_p_chunk->size += sizeof(chunk_header) + current->size;
@@ -145,7 +146,7 @@ void allocator::deallocate(void* address) {
                 prev->next = new_p_chunk;
             } else {
                 new_p_chunk->next = current;
-                new_p_chunk->size = chunk->size;
+                new_p_chunk->size = chunk.size;
                 prev->next = new_p_chunk;
             }
 

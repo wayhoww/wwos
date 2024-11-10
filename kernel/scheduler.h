@@ -33,6 +33,7 @@ namespace wwos::kernel {
         task_info* schedule();
         void remove_task(task_info* task);
         task_info* get_executing_task();
+        bool contains_task(task_info* task);
 
         
 
