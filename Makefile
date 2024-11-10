@@ -2,7 +2,7 @@ include wwos.mk
 
 DEFINES += -DWWOS_KERNEL
 
-.PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/prioritydemo/prioritydemo.app qemu.log.sym
+.PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/demo1/demo1.app applications/demo2/demo2.app qemu.log.sym
 
 all: wwos.img tools compile_flags.txt
 
@@ -46,7 +46,8 @@ clean:
 	make -C applications/init clean
 	make -C applications/shell clean
 	make -C applications/tty clean
-	make -C applications/prioritydemo clean
+	make -C applications/demo1 clean
+	make -C applications/demo2 clean
 	make -C tools clean
 	make -C test clean
 
@@ -107,12 +108,13 @@ kernel/kernel.img: kernel/kernel.elf
 	$(OBJCOPY) -O binary $< $@
 
 
-memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/prioritydemo/prioritydemo.app data/hello.txt
+memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/demo1/demo1.app applications/demo2/demo2.app data/hello.txt
 	./tools/wwfs initialize memdisk.wwfs 1024 2048 1024
 	./tools/wwfs add memdisk.wwfs /app/init  		  applications/init/init.app
 	./tools/wwfs add memdisk.wwfs /app/shell 		  applications/shell/shell.app
 	./tools/wwfs add memdisk.wwfs /app/tty   		  applications/tty/tty.app
-	./tools/wwfs add memdisk.wwfs /app/prioritydemo   applications/prioritydemo/prioritydemo.app
+	./tools/wwfs add memdisk.wwfs /app/demo1   		  applications/demo1/demo1.app
+	./tools/wwfs add memdisk.wwfs /app/demo2   		  applications/demo2/demo2.app
 	./tools/wwfs add memdisk.wwfs /data/hello.txt     data/hello.txt
 
 applications/init/init.app:
@@ -124,8 +126,11 @@ applications/shell/shell.app:
 applications/tty/tty.app:
 	$(MAKE) -C applications/tty tty.app
 
-applications/prioritydemo/prioritydemo.app:
-	$(MAKE) -C applications/prioritydemo prioritydemo.app
+applications/demo1/demo1.app:
+	$(MAKE) -C applications/demo1 demo1.app
+
+applications/demo2/demo2.app:
+	$(MAKE) -C applications/demo2 demo2.app
 
 tools:
 	$(MAKE) -C tools

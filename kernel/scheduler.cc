@@ -23,10 +23,17 @@ void scheduler::add_task(task_info* task) {
     wwassert(task, "task is null");
 
     if(active_tasks.empty()) {
-        task->vruntime = 0;
+        if(executing_task != nullptr) {
+            task->vruntime = max<uint64_t>(executing_task->vruntime, 1) - 1;
+        } else {
+            task->vruntime = 0;
+        }
     } else {
         task->vruntime = max<uint64_t>(active_tasks.smallest()->data->vruntime, 1) - 1;
     }
+
+    wwfmtlog("adding task {}, vruntime = {}", task->pid, task->vruntime);
+
     active_tasks.insert(task_info_ptr(task));
     if(executing_task == nullptr) {
         schedule();
@@ -43,6 +50,8 @@ void scheduler::replace_task(task_info* task_to_delete, task_info* task_to_add) 
     wwassert(task_to_add, "task_to_add is null");
 
     if(task_to_delete == executing_task) {
+        task_to_add->vruntime = task_to_delete->vruntime;
+        wwfmtlog("replacing executing task {}, vruntime = {}", task_to_add->pid, task_to_add->vruntime);
         executing_task = task_to_add;
         return;
     }
@@ -50,6 +59,7 @@ void scheduler::replace_task(task_info* task_to_delete, task_info* task_to_add) 
     auto node = active_tasks.find(task_info_ptr(task_to_delete));
     wwassert(task_to_delete == node->data.operator->(), "task not found");
     task_to_add->vruntime = task_to_delete->vruntime;
+    wwfmtlog("replacing task {}, vruntime = {}", task_to_add->pid, task_to_add->vruntime);
     node->data = task_info_ptr(task_to_add);
 }
 
@@ -76,6 +86,10 @@ task_info* scheduler::schedule() {
         auto physical_time_spent = physical_time - physical_time_start;
         auto virtual_time_spent = max<uint64_t>(physical_time_spent / executing_task->priority, 1);
         executing_task->vruntime += virtual_time_spent;
+#ifdef WWOS_LOG_SCHEDULER
+        wwfmtlog("task {} spent {} physical time, {} virtual time", executing_task->pid, physical_time_spent, virtual_time_spent);
+        wwfmtlog("task {} updated to vruntime = {}", executing_task->pid, executing_task->vruntime);
+#endif
         active_tasks.insert(task_info_ptr(executing_task));
         executing_task = nullptr;
     }
@@ -91,6 +105,10 @@ task_info* scheduler::schedule() {
         physical_time_start = physical_time;
 
         wwassert(executing_task, "no task to schedule");
+
+#ifdef WWOS_LOG_SCHEDULER
+        wwfmtlog("scheduled task {}, vruntime = {}", executing_task->pid, executing_task->vruntime);
+#endif
         return executing_task;
     }
 

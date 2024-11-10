@@ -72,6 +72,7 @@ void kallocate_page(uint64_t va);
 void current_task_exit();
 void on_data_abort(uint64_t addr);
 task_stat get_task_stat(uint64_t pid);
+void current_task_set_priority(uint64_t priority);
 
 // semaphore
 int64_t create_semaphore(uint64_t init);

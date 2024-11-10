@@ -328,6 +328,12 @@ void command_cat(const wwos::vector<wwos::string>& args) {
 }
 
 void command_external(const wwos::string& cmd, const wwos::vector<wwos::string>& args) {
+    auto fid = wwos::open(cmd, wwos::fd_mode::READONLY);
+    if(fid < 0) {
+        wwos::println("Command not found");
+        return;
+    }
+
     auto pid = wwos::fork();
 
     if(pid < 0) {

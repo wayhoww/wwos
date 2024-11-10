@@ -4,7 +4,6 @@
 
 
 int main() {
-    
     wwos::uint32_t pid;
 
     pid = wwos::fork();

@@ -2,6 +2,13 @@
 #include "wwos/stdio.h"
 
 
+#ifdef WWOS_KERNEL
+namespace wwos::kernel {
+    uint64_t get_cpu_time();
+}
+#endif
+
+
 namespace wwos {
     void print_int(int x) {
         if(x == 0) {
@@ -33,7 +40,11 @@ namespace wwos {
 
     void trigger_mark(string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
-
+#ifdef WWOS_KERNEL
+        print("[");
+        print_int(kernel::get_cpu_time());
+        print("] ");
+#endif
         print("mark at ");
         print(file);
         print(":");
@@ -46,7 +57,11 @@ namespace wwos {
 
     void trigger_log(string_view file, int line, string_view msg) {
         // do not use dynamic memory allocation here
-
+#ifdef WWOS_KERNEL
+        print("[");
+        print_int(kernel::get_cpu_time());
+        print("] ");
+#endif
         print("log at ");
         print(file);
         print(":");

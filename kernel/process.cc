@@ -155,6 +155,8 @@ namespace wwos::kernel {
         }        
         p_tasks->insert(task->pid, task);
         p_scheduler->add_task(task);
+
+        wwfmtlog("forked. parent={}, child={}", parent->pid, task->pid);
     }
 
     void initialize_process_subsystem() {
@@ -352,6 +354,8 @@ namespace wwos::kernel {
 
         create_process(path, task);
 
+        wwfmtlog("replaced {} with {}", task->pid, path);
+
         wwassert(p_scheduler->get_executing_task() != nullptr, "no executing task");
     }
 
@@ -507,6 +511,9 @@ namespace wwos::kernel {
         fd_info.offset += read_size;
         
         // wwfmtlog("read_size={}", read_size);
+        if(read_size > 0) {
+            wwfmtlog("read {} bytes from fd {} for pid {}", read_size, fd, current_task->pid);
+        }
         current_task->pcb.set_return_value(read_size);
     }
 
@@ -647,5 +654,11 @@ namespace wwos::kernel {
         } else {
             return task_stat::WAITING;
         }
+    }
+
+    void current_task_set_priority(uint64_t priority) {
+        auto current_task = p_scheduler->get_executing_task();
+        current_task->priority = priority;
+        current_task->pcb.set_return_value(0);
     }
 }

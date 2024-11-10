@@ -48,6 +48,7 @@ namespace wwos {
         EXIT,
         GET_PID,
         TASK_STAT,
+        SET_PRIORITY,
 
         // semaphore
         SEMAPHORE_CREATE, 
@@ -171,6 +172,10 @@ namespace wwos {
 
     inline task_stat tstat(uint64_t pid) {
         return static_cast<task_stat>(syscall(syscall_id::TASK_STAT, pid));
+    }
+
+    inline int64_t set_priority(uint64_t priority) {
+        return syscall(syscall_id::SET_PRIORITY, priority);
     }
 }
 

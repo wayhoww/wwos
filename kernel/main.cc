@@ -25,7 +25,7 @@ translation_table_kernel* initialize_memory() {
     // size: 1GB, begin: 1GB
     constexpr size_t MEMORY_BEGIN = WWOS_MEMORY_BEGIN;
     constexpr size_t MEMORY_SIZE = WWOS_MEMORY_SIZE;
-    constexpr size_t KERNEL_RESERVED_HEAP = 16 << 20;
+    constexpr size_t KERNEL_RESERVED_HEAP = 256 << 20;
 
     size_t aligned_begin = align_down(reinterpret_cast<uint64_t>(&wwos_kernel_begin_mark), translation_table_kernel::PAGE_SIZE);
     size_t aligned_end = align_up(reinterpret_cast<uint64_t>(&wwos_kernel_end_mark), translation_table_kernel::PAGE_SIZE);

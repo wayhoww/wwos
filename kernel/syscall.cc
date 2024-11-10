@@ -124,6 +124,9 @@ namespace wwos::kernel {
         case wwos::syscall_id::TASK_STAT:
             get_current_task().pcb.set_return_value((uint64_t)get_task_stat(arg));
             break;
+        case wwos::syscall_id::SET_PRIORITY:
+            current_task_set_priority(arg);
+            break;
         case syscall_id::EXIT:
             current_task_exit();
             break;

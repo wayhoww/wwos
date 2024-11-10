@@ -19,11 +19,15 @@ shared_file_node* kernel_logging_sfn = nullptr;
 
 
 void* operator new(wwos::size_t size) {
-    return wwos::kernel::kallocator->allocate(size, 8);
+    auto mem = wwos::kernel::kallocator->allocate(size, 8);
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void* operator new[](wwos::size_t size) {
-    return wwos::kernel::kallocator->allocate(size, 8);
+    auto mem = wwos::kernel::kallocator->allocate(size, 8);
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void operator delete(void* address) {
@@ -35,11 +39,15 @@ void operator delete[](void* address) {
 }
 
 void* operator new(wwos::size_t size, std::align_val_t align) {
-    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    auto mem = wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void* operator new[](wwos::size_t size, std::align_val_t align) {
-    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    auto mem = wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void operator delete(void* address, std::align_val_t align) {
@@ -52,11 +60,15 @@ void operator delete[](void* address, std::align_val_t align) {
 
 
 void* operator new(wwos::size_t size, wwos::size_t align) {
-    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    auto mem = wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void* operator new[](wwos::size_t size, wwos::size_t align) {
-    return wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    auto mem =  wwos::kernel::kallocator->allocate(size, static_cast<wwos::size_t>(align));
+    wwassert(mem, "Failed to allocate memory");
+    return mem;
 }
 
 void operator delete(void* address, wwos::size_t align) {

@@ -110,6 +110,9 @@ namespace wwos::kernel {
         if(node->type == fd_type::FIFO) {
             auto& fifo = p_fifo->get(node);
             auto read_size = min(fifo.fifo.size(), size);
+            if(read_size != 0) {
+                wwfmtlog("reading {} bytes from fifo", read_size);
+            }
             for(size_t i = 0; i < read_size; i++) {
                 wwassert(fifo.fifo.pop(((uint8_t*)buffer)[i]), "FIFO pop failed");
             }
@@ -181,7 +184,6 @@ namespace wwos::kernel {
     }
     
     shared_file_node* open_shared_file_node(uint64_t pid, string_view path, fd_mode mode) {
-        wwmark("msg");
         wwfmtlog("trying to open {} with mode {}. by {}", path, static_cast<int>(mode), pid);
 
         auto inode = get_inode(path);
@@ -251,6 +253,15 @@ namespace wwos::kernel {
         }
 
         if(sfn->writers.size() == 0 && sfn->readers.size() == 0) {
+            
+            if(sfn->type == fd_type::FIFO) {
+                auto fifo = p_fifo->get(sfn);
+                if(fifo.fifo.size() > 0) {
+                    wwfmtlog("fifo has {} bytes left", fifo.fifo.size());
+                    return false;
+                }
+            }
+
             p_inode_snode->remove(p_snode_inode->get(sfn));
             p_snode_inode->remove(sfn);
             if(sfn->type == fd_type::FIFO) {

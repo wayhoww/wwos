@@ -84,3 +84,7 @@ endif
 ifeq ($(LOG_PAGE),1)
 	CCFLAGS += -DWWOS_LOG_PAGE
 endif
+
+ifeq ($(LOG_SCHEDULER),1)
+	CCFLAGS += -DWWOS_LOG_SCHEDULER
+endif
