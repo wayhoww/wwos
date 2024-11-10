@@ -108,7 +108,7 @@ kernel/kernel.img: kernel/kernel.elf
 	$(OBJCOPY) -O binary $< $@
 
 
-memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/demo1/demo1.app applications/demo2/demo2.app data/hello.txt
+memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/demo1/demo1.app applications/demo2/demo2.app
 	./tools/wwfs initialize memdisk.wwfs 1024 2048 1024
 	./tools/wwfs add memdisk.wwfs /app/init  		  applications/init/init.app
 	./tools/wwfs add memdisk.wwfs /app/shell 		  applications/shell/shell.app
@@ -116,6 +116,9 @@ memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app appl
 	./tools/wwfs add memdisk.wwfs /app/demo1   		  applications/demo1/demo1.app
 	./tools/wwfs add memdisk.wwfs /app/demo2   		  applications/demo2/demo2.app
 	./tools/wwfs add memdisk.wwfs /data/hello.txt     data/hello.txt
+	python3 ./dev/add_sources.py ./tools/wwfs memdisk.wwfs
+
+
 
 applications/init/init.app:
 	$(MAKE) -C applications/init init.app

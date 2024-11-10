@@ -91,6 +91,8 @@ void add_file(const std::string& filename, const std::string& name, const std::s
         }
         auto name_piece = name.substr(path_index, next_index - path_index);
 
+        children = fs.get_children(parent);
+
         bool existing = false;
         for(auto& [child_name, child_id] : children) {
             if(std::string(child_name.c_str()) == name_piece) {
