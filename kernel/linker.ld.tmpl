@@ -18,7 +18,6 @@ SECTIONS {
     .symtab         : { *(.symtab)       }
     .symtab_shndx   : { *(.symtab_shndx) }
     
-    .other : { *(*) }
     
     . = ALIGN(4096);
     . += 0x200000; /* 2MB of stack memory */

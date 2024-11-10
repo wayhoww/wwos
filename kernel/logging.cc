@@ -2,14 +2,29 @@
 
 #include "logging.h"
 #include "global.h"
+
+#include "raspi4b/io.h"
+
 #include "wwos/stdint.h"
 
 
 namespace wwos::kernel {;
-
     void kputchar(char c) {
         if(g_uart) {
+#ifdef WWOS_BOARD_RASPI4B
+            if(c == '\n') {
+                uart_writeByteBlockingActual('\r');
+            }
+            uart_writeByteBlockingActual(c);
+#else
             g_uart->write(c);
+#endif
+            
+        } else {
+// #ifdef PA_UART_LOGGING
+//             auto uart_addr = reinterpret_cast<volatile uint32_t*>(PA_UART_LOGGING);
+//             *uart_addr = c;
+// #endif
         }
     }
 

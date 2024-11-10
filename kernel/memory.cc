@@ -48,8 +48,6 @@ bool physical_memory_page_allocator::alloc_specific_page(size_t addr, size_t n) 
         i += 1;
     }
 
-    wwfmtlog("freelist[i].addr = {:x}, freelist[i].size = {:x}, addr = {:x}, n = {}\n", freelist[i].addr, freelist[i].size, addr, n);
-
     if (i < freelist.size() && freelist[i].addr + freelist[i].size >= addr + n * page_size) {
         if (freelist[i].size == n * page_size) {
             freelist.erase(freelist.begin() + i);

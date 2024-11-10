@@ -332,8 +332,8 @@ namespace wwos::kernel {
         wwassert(task != nullptr, "no task to schedule");
 
         // dump ret
-        // wwfmtlog("ret?={}, ret_value={}", task->pcb.has_return_value, task->pcb.return_value);
-        // wwfmtlog("scheduled. eret to unprivileged. pid={}, pc={:x} usp={:x}", task->pid, task->pcb.pc, task->pcb.usp);
+        wwfmtlog("ret?={}, ret_value={}", task->pcb.has_return_value, task->pcb.return_value);
+        wwfmtlog("scheduled. eret to unprivileged. pid={}, pc={:x} usp={:x}", task->pid, task->pcb.pc, task->pcb.usp);
         task->pcb.tt->activate();
         set_timeout_interrupt(10000);
 
@@ -569,7 +569,7 @@ namespace wwos::kernel {
             ttkernel->set_page(pa, pa);
             current_task.pcb.tt->set_page(addr_aligned_down, pa);
             current_task.pcb.tt->activate();
-
+            wwfmtlog("allocated page for data abort. addr={:x} pa={:x}", addr_aligned_down, pa);
             return;
         }
         

@@ -49,6 +49,8 @@ wwos::int64_t fd_stdout = 0;
 
 extern "C" void _wwos_runtime_entry(int* argc, char*** argv) {
     using namespace wwos;
+
+    kprintln("at runtime entry");
     
     bool succ = wwos::allocate_page(wwos::USERSPACE_HEAP);
     wwassert(succ, "Failed to allocate page");

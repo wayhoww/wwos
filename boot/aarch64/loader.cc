@@ -10,12 +10,6 @@ extern wwos::uint64_t memdisk_blob_end_mark;
 extern "C" void loader_main();
 extern wwos::uint64_t _start;
 
-namespace wwos::kernel {
-    void kputchar(char c) {
-        volatile char* uart = reinterpret_cast<char*>(0x09000000);
-        *uart = c;
-    }
-}
 
 namespace wwos::boot {
 
@@ -29,7 +23,7 @@ void setup_translation_table() {
 
     static uint64_t descriptors[512] __attribute__((aligned(4096)));
 
-    for(uint64_t i = 0; i < 4; i++) {
+    for(uint64_t i = 0; i < 512; i++) {
         // reference: https://developer.arm.com/documentation/102416/0100/Single-level-table-at-EL3/Understand-how-an-entry-is-formed
         // https://developer.arm.com/documentation/ddi0406/c/System-Level-Architecture/Virtual-Memory-System-Architecture--VMSA-/Long-descriptor-translation-table-format/Long-descriptor-translation-table-format-descriptors
 
@@ -60,8 +54,9 @@ void setup_translation_table() {
                                                     // EE=0          EL3 data accesses are little endian
         MSR      SCTLR_EL1, x0
         ISB
-    )": : "r"(&descriptors));
+    )": : "r"(&descriptors): "x0", "x1");
 }
+
 
 void main() {
     setup_translation_table();
@@ -85,6 +80,7 @@ void main() {
         "r"(memdisk_blob_begin),
         "r"(memdisk_blob_end),
         "r"(kernel_blob_begin)
+        : "x0", "x1", "x2"
     );
 }
 

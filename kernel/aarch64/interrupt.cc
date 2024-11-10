@@ -159,60 +159,15 @@ void save_process_info(uint64_t p_sp) {
     __builtin_unreachable();
 }
 
-
-// [[noreturn]] void jump_el1(uint64_t addr, uint64_t sp_kernel, process_state state){
-//     asm volatile("MSR SPSR_EL1, %0" : : "r"(state.spsr));
-
-//     asm volatile(R"(
-//         MOV SP, %1
-
-//         MOV x0,  %2
-//         MOV x1,  %0
-//         LDR x2,  [x1, #16]
-//         LDR x3,  [x1, #24]
-//         LDR x4,  [x1, #32]
-//         LDR x5,  [x1, #40]
-//         LDR x6,  [x1, #48]
-//         LDR x7,  [x1, #56]
-//         LDR x8,  [x1, #64]
-//         LDR x9,  [x1, #72]
-//         LDR x10, [x1, #80]
-//         LDR x11, [x1, #88]
-//         LDR x12, [x1, #96]
-//         LDR x13, [x1, #104]
-//         LDR x14, [x1, #112]
-//         LDR x15, [x1, #120]
-//         LDR x16, [x1, #128]
-//         LDR x17, [x1, #136]
-//         LDR x18, [x1, #144]
-//         LDR x19, [x1, #152]
-//         LDR x20, [x1, #160]
-//         LDR x21, [x1, #168]
-//         LDR x22, [x1, #176]
-//         LDR x23, [x1, #184]
-//         LDR x24, [x1, #192]
-//         LDR x25, [x1, #200]
-//         LDR x26, [x1, #208]
-//         LDR x27, [x1, #216]
-//         LDR x28, [x1, #224]
-//         LDR x29, [x1, #232]
-//         LDR x30, [x1, #240]
-//         LDR x1,  [x1, #8]
-//         ERET
-//     )" : : "r"(&state.registers), "r"(sp_kernel), "r"(ret): "x0", "x1");
-
-//     __builtin_unreachable();
-// }
-
 gic02_driver* g_interrupt_controller;
 
 void initialize_timer() {
-    constexpr size_t GICD_BASE = 0x08000000 + KA_BEGIN;
-    constexpr size_t GICC_BASE = 0x08010000 + KA_BEGIN;
+    constexpr size_t GICD_BASE_VA = WWOS_GICD_BASE + KA_BEGIN;
+    constexpr size_t GICC_BASE_VA = WWOS_GICC_BASE + KA_BEGIN;
     constexpr size_t TIMER_IRQ = 30;
     constexpr size_t ICFGR_EDGE = 2;
 
-    g_interrupt_controller = new gic02_driver(GICD_BASE, GICC_BASE);
+    g_interrupt_controller = new gic02_driver(GICD_BASE_VA, GICC_BASE_VA);
     g_interrupt_controller->initialize();
     g_interrupt_controller->set_config(TIMER_IRQ, ICFGR_EDGE);
     g_interrupt_controller->set_priority(TIMER_IRQ, 0);
@@ -233,7 +188,7 @@ void set_timeout_interrupt(uint64_t microsecond) {
         R"(
             MOV      x0, 1
             MSR      CNTP_CTL_EL0, x0
-        )"
+        )":::"x0"
     );
 }
 
@@ -254,6 +209,11 @@ constexpr size_t TIMER_IRQ = 30;
     auto ec_bits = get_ec_bits();
 
     int64_t interrupt_id = 1023;
+    
+    {
+        auto current_task = get_current_task();
+        wwfmtlog("Exception. ELR={:x}, SP={:x} ARG0={:x} ARG1={:x} SOURCE={:x}, EC={:x}", current_task.pcb.pc, current_task.pcb.usp, arg0, arg1, source, ec_bits);
+    }
 
     if(source % 4 == 1) {
         if(g_interrupt_controller && ((interrupt_id = g_interrupt_controller->get_interrupt_id()) != 1023)) {
@@ -282,8 +242,8 @@ constexpr size_t TIMER_IRQ = 30;
     auto& current_task = get_current_task();
     current_task.pcb.tt->activate();
 
-    // wwfmtlog("ret?={}, ret_value={}", current_task.pcb.has_return_value, current_task.pcb.return_value);
-    // wwfmtlog("eret to unprivileged. pid={}, pc={:x} usp={:x}", current_task.pid, current_task.pcb.pc, current_task.pcb.usp);
+    wwfmtlog("ret?={}, ret_value={}", current_task.pcb.has_return_value, current_task.pcb.return_value);
+    wwfmtlog("eret to unprivileged. pid={}, pc={:x} usp={:x}", current_task.pid, current_task.pcb.pc, current_task.pcb.usp);
 
     eret_to_unprivileged(current_task.pcb.pc, current_task.pcb.usp, current_task.pcb.ksp, current_task.pcb.state, current_task.pcb.has_return_value, current_task.pcb.return_value);
 }

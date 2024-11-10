@@ -65,7 +65,7 @@ namespace wwos {
             MOV x11, %2;
             SVC #0;
             MOV %0, x0;
-        )": "=r"(ret) : "r"(id), "r"(arg) : "x10", "x11");
+        )": "=r"(ret) : "r"(id), "r"(arg) : "x10", "x11", "x0");
 
         return ret;
     }

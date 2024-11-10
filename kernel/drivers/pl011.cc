@@ -1,20 +1,6 @@
 #include "pl011.h"
 
 
-//    // 0x018
-//     volatile uint32_t* addr2 = reinterpret_cast<volatile uint32_t*>(KA_BEGIN + 0x09000018);
-//     while(true) {
-//         uint32_t flag = *addr2;
-//         if(flag >> 6 & 1) {
-//             println("full");
-
-//             uint32_t data = *reinterpret_cast<volatile uint32_t*>(KA_BEGIN + 0x09000000);
-//             printf("data: {}\n", data);
-//         } 
-
-//     }
-
-
 namespace wwos::kernel {
 
     constexpr size_t UARTFR = 0x18;

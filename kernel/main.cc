@@ -1,11 +1,14 @@
 #include "aarch64/interrupt.h"
 #include "drivers/pl011.h"
+#include "logging.h"
 #include "wwos/algorithm.h"
 #include "wwos/alloc.h"
 #include "wwos/format.h"
 #include "wwos/stdint.h"
 #include "wwos/stdio.h"
 #include "wwos/string_view.h"
+
+#include "raspi4b/io.h"
 
 #include "process.h"
 #include "filesystem.h"
@@ -27,8 +30,8 @@ translation_table_kernel* initialize_memory() {
     static translation_table_kernel tt;
 
     // size: 1GB, begin: 1GB
-    constexpr size_t MEMORY_BEGIN = 1 << 30;
-    constexpr size_t MEMORY_SIZE = 1 << 30;
+    constexpr size_t MEMORY_BEGIN = WWOS_MEMORY_BEGIN;
+    constexpr size_t MEMORY_SIZE = WWOS_MEMORY_SIZE;
     constexpr size_t KERNEL_RESERVED_HEAP = 16 << 20;
 
     size_t aligned_begin = align_down(reinterpret_cast<uint64_t>(&wwos_kernel_begin_mark), translation_table_kernel::PAGE_SIZE);
@@ -61,13 +64,22 @@ void initialize_logging() {
 void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
     ttkernel = initialize_memory();
     
-    auto aligned_uart_begin = align_down(0x09000000ull, translation_table_kernel::PAGE_SIZE);
+    auto aligned_uart_begin = align_down(PA_UART_LOGGING, translation_table_kernel::PAGE_SIZE);
     ttkernel->set_page(aligned_uart_begin, aligned_uart_begin);
     
-    auto aligned_gicd_begin = align_down(0x08000000ull, translation_table_kernel::PAGE_SIZE);
+#ifdef WWOS_BOARD_RASPI4B
+    auto pa = 0xfe215000ull;
+    pa = align_down(pa, translation_table_kernel::PAGE_SIZE);
+    ttkernel->set_page(pa, pa);
+    pa = 0xfe200000ull;
+    pa = align_down(pa, translation_table_kernel::PAGE_SIZE);
+    ttkernel->set_page(pa, pa);
+#endif
+
+    auto aligned_gicd_begin = align_down(WWOS_GICC_BASE, translation_table_kernel::PAGE_SIZE);
     ttkernel->set_page(aligned_gicd_begin, aligned_gicd_begin);
 
-    auto aligned_gicc_begin = align_down(0x08010000ull, translation_table_kernel::PAGE_SIZE);
+    auto aligned_gicc_begin = align_down(WWOS_GICD_BASE, translation_table_kernel::PAGE_SIZE);
     ttkernel->set_page(aligned_gicc_begin, aligned_gicc_begin);
     
     auto aligned_memdisk_begin = align_down(pa_memdisk_begin, translation_table_kernel::PAGE_SIZE);
@@ -79,7 +91,11 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
     ttkernel->activate();
     setup_interrupt();
 
-    g_uart = new pl011_driver(0x09000000ull + KA_BEGIN);
+    g_uart = new pl011_driver(PA_UART_LOGGING + KA_BEGIN);
+#ifdef WWOS_BOARD_RASPI4B
+    uart_init();
+#endif
+
     initialize_filesystem(reinterpret_cast<void*>(pa_memdisk_begin + KA_BEGIN), pa_memdisk_end - pa_memdisk_begin);
     initialize_process_subsystem();
     initialize_timer();
@@ -87,7 +103,6 @@ void main(wwos::uint64_t pa_memdisk_begin, wwos::uint64_t pa_memdisk_end) {
 
     create_process("/app/init");
 
-    // kallocator->enable_logging();
 
     schedule();
     
