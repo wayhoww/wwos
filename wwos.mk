@@ -26,8 +26,9 @@ else ifeq ($(BOARD),aarch64-raspi4b)
 	MEMORY_SIZE = 0x20000000
 	BOOT_ASM = boot-raspi4b.s
 	DEFINES += -DWWOS_BOARD_RASPI4B
+    $(error Raspberry Pi 4B is not fully supported)
 else
-	$(error Unknown board)
+    $(error Unknown board)
 endif
 
 # -dtb emulation/bcm2711-rpi-4-b.dtb

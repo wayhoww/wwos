@@ -68,8 +68,22 @@ boot/loader.o: boot/aarch64/loader.cc
 libwwos/libwwos_kernel.a:
 	$(MAKE) -C libwwos libwwos_kernel.a
 
-KERNEL_OBJS = kernel/main.o kernel/logging.o kernel/global.o kernel/memory.o kernel/syscall.o kernel/process.o kernel/filesystem.o kernel/scheduler.o kernel/drivers/gic2.o kernel/drivers/pl011.o kernel/raspi4b/io.o
-KERNEL_AARCH64_OBJS = kernel/aarch64/memory.o kernel/aarch64/time.o kernel/aarch64/interrupt.o kernel/aarch64/exception.o kernel/aarch64/start.o
+KERNEL_OBJS  = kernel/main.o 
+KERNEL_OBJS += kernel/logging.o
+KERNEL_OBJS += kernel/global.o
+KERNEL_OBJS += kernel/memory.o
+KERNEL_OBJS += kernel/syscall.o
+KERNEL_OBJS += kernel/process.o
+KERNEL_OBJS += kernel/filesystem.o
+KERNEL_OBJS += kernel/scheduler.o
+KERNEL_OBJS += kernel/drivers/gic2.o
+KERNEL_OBJS += kernel/drivers/pl011.o
+
+KERNEL_AARCH64_OBJS  = kernel/aarch64/memory.o 
+KERNEL_AARCH64_OBJS += kernel/aarch64/time.o 
+KERNEL_AARCH64_OBJS += kernel/aarch64/interrupt.o 
+KERNEL_AARCH64_OBJS += kernel/aarch64/exception.o 
+KERNEL_AARCH64_OBJS += kernel/aarch64/start.o
 
 kernel/aarch64/start.s: kernel/aarch64/start.s.tmpl
 	$(CC) -P -E -xc++ $(DEFINES) $< -o $@

@@ -3,11 +3,13 @@
 #include "wwos/algorithm.h"
 #include "wwos/assert.h"
 #include "wwos/stdint.h"
+#include "wwos/stdio.h"
 #include "wwos/syscall.h"
 
 #include "../drivers/gic2.h"
 #include "../syscall.h"
 #include "../process.h"
+
 #include "interrupt.h"
 
 namespace wwos::kernel { [[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp, uint64_t source); }
@@ -168,6 +170,7 @@ void initialize_timer() {
     g_interrupt_controller = new gic02_driver(GICD_BASE_VA, GICC_BASE_VA);
     g_interrupt_controller->initialize();
     g_interrupt_controller->set_config(TIMER_IRQ, ICFGR_EDGE);
+    g_interrupt_controller->set_core(TIMER_IRQ, 0);
     g_interrupt_controller->set_priority(TIMER_IRQ, 0);
     g_interrupt_controller->clear(TIMER_IRQ);
     g_interrupt_controller->enable(TIMER_IRQ);
@@ -201,7 +204,7 @@ void disable_irq() {
 
 constexpr size_t TIMER_IRQ = 30;
 
-[[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp, uint64_t source) {
+[[noreturn]] void internal_wwos_aarch64_handle_exception(uint64_t arg0, uint64_t arg1, uint64_t p_sp, uint64_t source) {    
     save_process_info(p_sp);
 
     auto ec_bits = get_ec_bits();

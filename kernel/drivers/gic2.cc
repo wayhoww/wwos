@@ -1,3 +1,5 @@
+#include "wwos/stdio.h"
+
 #include "gic2.h"
 
 namespace wwos::kernel {
@@ -78,7 +80,7 @@ void gic02_driver::set_core(size_t interrupt, size_t core) {
     size_t addr = gicd_base + GICD_ITARGETSR + (interrupt / GICD_ITARGETSR_SIZE) * 4;
     uint32_t value = read_volatile<uint32_t>(addr);
     value &= ~(0xff << shift);
-    value |= core << shift;
+    value |= (1 << core) << shift;
     write_volatile<uint32_t>(addr, value);
 }
 
