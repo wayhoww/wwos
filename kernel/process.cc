@@ -510,10 +510,6 @@ namespace wwos::kernel {
         auto read_size = read_shared_node(buffer, fd_info.node, fd_info.offset, size);
         fd_info.offset += read_size;
         
-        // wwfmtlog("read_size={}", read_size);
-        if(read_size > 0) {
-            wwfmtlog("read {} bytes from fd {} for pid {}", read_size, fd, current_task->pid);
-        }
         current_task->pcb.set_return_value(read_size);
     }
 

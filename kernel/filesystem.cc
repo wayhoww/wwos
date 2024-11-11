@@ -110,9 +110,6 @@ namespace wwos::kernel {
         if(node->type == fd_type::FIFO) {
             auto& fifo = p_fifo->get(node);
             auto read_size = min(fifo.fifo.size(), size);
-            if(read_size != 0) {
-                wwfmtlog("reading {} bytes from fifo", read_size);
-            }
             for(size_t i = 0; i < read_size; i++) {
                 wwassert(fifo.fifo.pop(((uint8_t*)buffer)[i]), "FIFO pop failed");
             }

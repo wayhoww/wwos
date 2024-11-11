@@ -266,7 +266,7 @@ void command_ls(const wwos::vector<wwos::string>& args) {
         } else {
             type = "fifo";
         }
-        wwos::string size = wwos::to_string(stat.size);
+        wwos::string size = wwos::format("{}", stat.size);
         
         wwos::printf("{:4}  {:12} {:0l} \n", type, size, child);
     }
@@ -399,6 +399,10 @@ int main() {
         wwos::print("shell> ");
         auto line = getline();
         line = line.strip();
+
+        if(line.size() == 0) {
+            continue;
+        }
 
         auto tokens = tokenize(line);
         auto parser = statement_parser(tokens);

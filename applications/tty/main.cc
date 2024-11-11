@@ -13,7 +13,7 @@ wwos::int64_t current_tty = -1;
 
 class output_proxy {
 public:
-    output_proxy(): m_buffer(10240) {}
+    output_proxy(): m_buffer(1024) {}
 
     void write(wwos::uint8_t c) {
         wwos::kputchar(c);

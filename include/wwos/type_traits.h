@@ -40,9 +40,18 @@ template <> struct is_integral<uint16_t> { static constexpr bool value = true; }
 template <> struct is_integral<uint32_t> { static constexpr bool value = true; };
 template <> struct is_integral<uint64_t> { static constexpr bool value = true; };
 template <> struct is_integral<size_t> { static constexpr bool value = true; };
+         
+
+template <typename T> struct is_pointer { static constexpr bool value = false; };
+template <typename T> struct is_pointer<T*> { static constexpr bool value = true; };
 
 template <bool, typename T = void> struct enable_if {};
 template <typename T> struct enable_if<true, T> { using type = T; };
+
+// is vector type
+template <typename T> class vector;
+template <typename T> struct is_vector { static constexpr bool value = false; };
+template <typename T> struct is_vector<vector<T>> { static constexpr bool value = true; };
 
 }
 
