@@ -76,6 +76,20 @@ namespace wwos {
     }
 #endif
 
+#ifndef WWOS_KERNEL
+    inline wwos::string getline() {
+        wwos::string out;
+        while(true) {
+            wwos::int32_t c = wwos::getchar();
+            out.push_back(c);
+            if(c == '\n') {
+                break;
+            }
+        }
+        return out;
+    }
+#endif
+
     inline void print(string_view s) {
         for (size_t i = 0; i < s.size(); i++) {
             putchar(s[i]);

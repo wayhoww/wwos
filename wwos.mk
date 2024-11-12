@@ -2,10 +2,16 @@ BOARD = aarch64-virt9
 
 SIZE_PREKERNEL = 0x2000000 # 32 MB
 
-CPU = cortex-a57
+CPU = cortex-a72
+ACCEL = 
+ifeq ($(CPU), host)
+	ACCEL = -accel hvf
+endif
+
+
 
 ifeq ($(BOARD),aarch64-virt9)
-	QEMU_FLAGS = -machine virt -cpu $(CPU) -monitor none
+	QEMU_FLAGS = -machine virt -cpu $(CPU) $(ACCEL) -monitor none
 	PA_ENTRY = 0x40080000
 	KA_BEGIN = 0xffffff8000000000
 	PA_UART_LOGGING = 0x09000000ull
@@ -16,7 +22,7 @@ ifeq ($(BOARD),aarch64-virt9)
 	BOOT_ASM = boot-virt9.s
 	DEFINES += -DWWOS_BOARD_VIRT9
 else ifeq ($(BOARD),aarch64-raspi4b)
-	QEMU_FLAGS = -machine raspi4b -cpu $(CPU) -monitor none -serial stdio 
+	QEMU_FLAGS = -machine raspi4b -cpu $(CPU) $(ACCEL) -monitor none -serial stdio 
 	PA_ENTRY = 0x80000
 	KA_BEGIN = 0xffffff8000000000
 	PA_UART_LOGGING = 0xFE201000ull

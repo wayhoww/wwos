@@ -32,6 +32,13 @@ public:
         m_buffer.clear();
     }
 
+    void pop(wwos::size_t n) {
+        for(wwos::size_t i = 0; i < n; i++) {
+            wwos::uint8_t c;
+            m_buffer.pop_back(c);
+        }
+    }
+
 protected:
     wwos::cycle_queue<wwos::uint8_t> m_buffer;
 };
@@ -152,9 +159,9 @@ void clear_screen() {
 void command_mode(output_proxy& proxy) {
     tty_print(proxy, "WWOS Virtual TTY Service\n");
     tty_print(proxy, "-----------------------------------------------\n");
-    tty_print(proxy, "goto <id>      Switch to TTY #id. id = 0/1/2/3 \n");
+    tty_print(proxy, "goto <id>      Switch to TTY #id. id = 1/2/3/4 \n");
     tty_print(proxy, "log            Show system log                 \n");
-    tty_print(proxy, "ret            Return to previouse tty         \n");
+    tty_print(proxy, "ret            Return to previous tty          \n");
     tty_print(proxy, "\n");
     tty_print(proxy, "\n");
 
@@ -226,7 +233,14 @@ int main() {
         auto p_tty = ttys[current_tty];
 
         if(current_tty != N_TTYS) {
-            if(is_normal_characters(c) || c == 13) {
+            if(c == 127) {
+                if(p_tty->buffer_line.size() > 0) {
+                    p_tty->proxy.pop(1);
+                    p_tty->buffer_line.pop_back();
+                    clear_screen();
+                    p_tty->proxy.rewrite();
+                }
+            } else if(is_normal_characters(c) || c == 13) {
                 if(c == 13) c = 10;
 
                 p_tty->buffer_line.push_back(c);

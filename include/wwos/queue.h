@@ -20,6 +20,16 @@ public:
         return true;
     }
 
+    bool push_front(const T& data) {
+        if(m_size == m_data.size()) {
+            return false;
+        }
+        m_head = (m_head - 1 + m_data.size()) % m_data.size();
+        m_data[m_head] = data;
+        m_size++;
+        return true;
+    }
+
     bool pop(T& out) {
         if(m_size == 0) {
             return false;
@@ -35,6 +45,16 @@ public:
             return false;
         }
         out = m_data[m_head];
+        return true;
+    }
+
+    bool pop_back(T& out) {
+        if(m_size == 0) {
+            return false;
+        }
+        out = m_data[(m_tail - 1 + m_data.size()) % m_data.size()];
+        m_tail = (m_tail - 1 + m_data.size()) % m_data.size();
+        m_size--;
         return true;
     }
 

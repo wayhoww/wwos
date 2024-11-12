@@ -122,9 +122,7 @@ void allocator::deallocate(void* address) {
     while (prev != nullptr) {
         if (prev < new_p_chunk && (new_p_chunk < current || current == nullptr)) {
             size_t end_of_prev = reinterpret_cast<size_t>(prev) + sizeof(chunk_header) + prev->size;
-            // wwmark("msg");
             size_t end_of_new_p_chunk = reinterpret_cast<size_t>(new_p_chunk) + sizeof(chunk_header) + chunk.size;
-            // wwmark("msg");
             if (end_of_prev > reinterpret_cast<size_t>(new_p_chunk) || (current != nullptr && end_of_new_p_chunk > reinterpret_cast<size_t>(current))) {
                 wwassert(false, "memory corrupted");
             }

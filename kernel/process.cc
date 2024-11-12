@@ -70,17 +70,11 @@ namespace wwos::kernel {
     void init_fifo_for_process(uint64_t pid) {
         wwfmtlog("initing fifo for pid {}", pid);
 
-        wwmark("msg");
         auto proc = open_shared_file_node(0, "/proc", fd_mode::READONLY);
-        wwmark("msg");
         if(proc == nullptr) {
-        wwmark("msg");
             create_shared_file_node("/proc", fd_type::DIRECTORY);
-        wwmark("msg");
         } else {
-        wwmark("msg");
             close_shared_file_node(0, proc);
-        wwmark("msg");
         }
 
         wwlog("proc folder exists");

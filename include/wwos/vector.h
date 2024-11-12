@@ -174,7 +174,7 @@ public:
     iterator end() {
         return iterator(m_data + m_size);
     }
-
+    
     void insert(iterator position, const T& value) {
         expand();
         wwassert(position.m_ptr >= m_data && position.m_ptr <= m_data + m_size, "position is out of range");
