@@ -13,7 +13,7 @@ $(WWOS_ROOT)/libwwos/libwwos.a:
 main.elf: ../linker.ld main.o $(WWOS_ROOT)/libwwos/libwwos.a
 	$(LD) -nostdlib -T$< $(filter-out $<,$^) -o $@
 
-init.app: main.elf
+main.app: main.elf
 	$(OBJCOPY) -O binary $< $@
 
 clean:

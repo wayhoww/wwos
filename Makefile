@@ -2,14 +2,10 @@ include wwos.mk
 
 DEFINES += -DWWOS_KERNEL
 
-.PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a \
-		applications/init/init.app \
-		applications/shell/shell.app \
-		applications/tty/tty.app \
-		applications/demo1/demo1.app \
-		applications/demo2/demo2.app \
-		applications/hello/hello.app \
-		qemu.log.sym
+APPLICATIONS = init shell tty priority hello
+APP_PATHS = $(addprefix applications/, $(addsuffix /main.app, $(APPLICATIONS)))
+
+.PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a qemu.log.sym $(APP_PATHS)
 
 all: wwos.img tools compile_flags.txt
 
@@ -17,7 +13,7 @@ run: wwos.img
 	qemu-system-aarch64 $(QEMU_FLAGS) -nographic  -kernel $< 
 
 demo: wwos.img
-	qemu-system-aarch64 $(QEMU_FLAGS) -serial vc:400x300  -kernel $< 
+	qemu-system-aarch64 $(QEMU_FLAGS) -serial vc:800x600  -kernel $< 
 
 log: wwos.img
 	qemu-system-aarch64 $(QEMU_FLAGS) -nographic -kernel $< -d int,in_asm,guest_errors -D qemu.log
@@ -48,16 +44,13 @@ dev: compile_flags.txt test/compile_flags.txt
 clean:
 	rm -f qemu.log qemu.log.sym
 	rm -f kernel/aarch64/start.s
-	find . \( -name "*.o" -o -name "*.elf" -o -name "*.img" -o -name "*.ld" -o -name "*.a" -o -name "*.app"  -o -name "*.wwfs" -o -name "*.bin" -o -name "compile_flags.txt" \) -type f -delete
+	find . \( -name "*.o" -o -name "*.elf" -o -name "*.img" -o -name "*.ld" \
+			-o -name "*.a" -o -name "*.app"  -o -name "*.wwfs" -o -name "*.bin" \
+			-o -name "compile_flags.txt" \) -type f -delete
 	make -C libwwos clean
-	make -C applications/init clean
-	make -C applications/shell clean
-	make -C applications/tty clean
-	make -C applications/demo1 clean
-	make -C applications/demo2 clean
-	make -C applications/hello clean
 	make -C tools clean
 	make -C test clean
+	$(foreach app, $(APPLICATIONS), make -C applications/$(app) clean;)
 
 boot/boot.o: boot/aarch64/$(BOOT_ASM) kernel/kernel.img memdisk.wwfs
 	$(AS) $(ASFLAGS) -c $< -o $@
@@ -116,35 +109,14 @@ kernel/kernel.img: kernel/kernel.elf
 	$(OBJCOPY) -O binary $< $@
 
 
-memdisk.wwfs: tools applications/init/init.app applications/shell/shell.app applications/tty/tty.app applications/demo1/demo1.app applications/demo2/demo2.app applications/hello/hello.app
+memdisk.wwfs: tools $(APP_PATHS)
 	./tools/wwfs initialize memdisk.wwfs 1024 2048 1024
-	./tools/wwfs add memdisk.wwfs /app/init  		  applications/init/init.app
-	./tools/wwfs add memdisk.wwfs /app/shell 		  applications/shell/shell.app
-	./tools/wwfs add memdisk.wwfs /app/tty   		  applications/tty/tty.app
-	./tools/wwfs add memdisk.wwfs /app/demo1   		  applications/demo1/demo1.app
-	./tools/wwfs add memdisk.wwfs /app/demo2   		  applications/demo2/demo2.app
-	./tools/wwfs add memdisk.wwfs /app/hello   		  applications/hello/hello.app
+	$(foreach app, $(APPLICATIONS), ./tools/wwfs add memdisk.wwfs /app/$(app) applications/$(app)/main.app;)
 	./tools/wwfs add memdisk.wwfs /data/hello.txt     data/hello.txt
 	python3 ./dev/add_sources.py ./tools/wwfs memdisk.wwfs
 
-
-applications/init/init.app:
-	$(MAKE) -C applications/init init.app
-
-applications/shell/shell.app:
-	$(MAKE) -C applications/shell shell.app
-
-applications/tty/tty.app:
-	$(MAKE) -C applications/tty tty.app
-
-applications/demo1/demo1.app:
-	$(MAKE) -C applications/demo1 demo1.app
-
-applications/demo2/demo2.app:
-	$(MAKE) -C applications/demo2 demo2.app
-
-applications/hello/hello.app:
-	$(MAKE) -C applications/hello hello.app
+$(foreach app, $(APPLICATIONS), applications/$(app)/main.app): 
+	$(MAKE) -C $(dir $@) main.app
 
 tools:
 	$(MAKE) -C tools

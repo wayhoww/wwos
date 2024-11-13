@@ -32,8 +32,6 @@ void scheduler::add_task(task_info* task) {
         task->vruntime = max<uint64_t>(active_tasks.smallest()->data->vruntime, 1) - 1;
     }
 
-    wwfmtlog("adding task {}, vruntime = {}", task->pid, task->vruntime);
-
     active_tasks.insert(task_info_ptr(task));
     if(executing_task == nullptr) {
         schedule();

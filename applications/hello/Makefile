@@ -13,8 +13,8 @@ $(WWOS_ROOT)/libwwos/libwwos.a:
 main.elf: ../linker.ld main.o $(WWOS_ROOT)/libwwos/libwwos.a
 	$(LD) -nostdlib -T$< $(filter-out $<,$^) -o $@
 
-hello.app: main.elf
+main.app: main.elf
 	$(OBJCOPY) -O binary $< $@
 
 clean:
-	rm -f main.o main.elf hello.app
+	rm -f main.o main.elf main.app
