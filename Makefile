@@ -2,7 +2,7 @@ include wwos.mk
 
 DEFINES += -DWWOS_KERNEL
 
-APPLICATIONS = init shell tty priority hello
+APPLICATIONS = init shell tty priority hello sleep
 APP_PATHS = $(addprefix applications/, $(addsuffix /main.app, $(APPLICATIONS)))
 
 .PHONY: all tools run log trace clean test dev memdisk.wwfs libwwos/libwwos_kernel.a qemu.log.sym $(APP_PATHS)
