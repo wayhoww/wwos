@@ -24,5 +24,5 @@ This project is developed for an assignment of Advanced Operating System at Beij
 * several demos
 
 #### TODO
-[] support for real hardware
-[] multi-core
+* support for real hardware
+* multi-core
